@@ -7,8 +7,8 @@ import java.io.File
 import javax.imageio.ImageIO
 
 fun main() {
-    val inputImageFile = File("data/bs.jpg")
-    val threshold = 0.75
+    val inputImageFile = File("data/segmented.png")
+    val threshold = 0.95
     val outputImageFile = File("output/${inputImageFile.nameWithoutExtension}-vision-$threshold.png")
     val inputImage = ImageIO.read(inputImageFile)
 

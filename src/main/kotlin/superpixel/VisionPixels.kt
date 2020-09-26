@@ -10,6 +10,8 @@ import kotlin.math.min
 typealias Point = Pair<Int, Int>
 typealias GroupState = Pair<VectorN, Int> //Current Average Vector and Sample Size
 
+private const val sigma = 1.0
+
 class VisionPixels(private val image: BufferedImage) {
     private val width = image.width
     private val height = image.height
@@ -49,11 +51,13 @@ class VisionPixels(private val image: BufferedImage) {
                 }
 
                 val (currentAverage, samples) = groupStateMap[actualLabel] ?: currentPixelHsl to 0
-                val newSampleSize = samples + 1
-                val difference = currentAverage - currentPixelHsl
-                val newAverage = currentAverage + (difference / newSampleSize.toDouble())
+                //val newSampleSize = samples + 1
+                val groupVote = currentAverage * sigma
+                val currentVote = currentPixelHsl * (1 - sigma)
+                //val newAverage = currentAverage + (difference / newSampleSize.toDouble())
+                val newAverage = groupVote + currentVote
 
-                groupStateMap[actualLabel] = newAverage to newSampleSize
+                groupStateMap[actualLabel] = newAverage to 0
 
                 mappedPixels[x to y] = actualLabel
                 dataStore[x][y] = PixelLabel(currentPixel, actualLabel)
