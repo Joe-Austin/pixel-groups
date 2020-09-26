@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="net.joeaustin.data.PixelTests" tests="1" skipped="0" failures="0" errors="0" timestamp="2020-09-26T04:36:32" hostname="Joes-MacBook-Pro-2.local" time="0.028">
+  <properties/>
+  <testcase name="test" classname="net.joeaustin.data.PixelTests" time="0.028"/>
+  <system-out><![CDATA[Pixel(a=255, r=33, g=28, b=25)
+[0.8660254037844386, 0.5000000000000001, 0.019920318725099587, 0.49215686274509807]
+[0.4861967361004687, 0.8738493770697849, 0.18644067796610167, 0.34705882352941175]
+[0.3826834323650896, 0.9238795325112868, 0.13793103448275867, 0.11372549019607844]
+--------------------
+
+0.8617737637563688
+0.7524484113684131
+---------------
+0.9908041995066669
+0.9949431261301271
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>
