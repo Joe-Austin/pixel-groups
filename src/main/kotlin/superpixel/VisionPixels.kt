@@ -2,19 +2,21 @@ package superpixel
 
 import net.joeaustin.data.Pixel
 import net.joeaustin.data.PixelLabel
+import net.joeaustin.data.VectorN
 import java.awt.image.BufferedImage
 import kotlin.math.max
 import kotlin.math.min
 
 typealias Point = Pair<Int, Int>
+typealias GroupState = Pair<VectorN, Int> //Current Average Vector and Sample Size
 
 class VisionPixels(private val image: BufferedImage) {
     private val width = image.width
     private val height = image.height
 
     fun labelPixels(threshold: Double = 0.9): Array<Array<PixelLabel>> {
-        //val dataStore = arrayOf(Array(width * height) { PixelLabel(Pixel(0, 0, 0, 0), 0) })
         val dataStore = Array(width) { Array(height) { PixelLabel(Pixel(0, 0, 0, 0), 0) } }
+        val groupStateMap = HashMap<Int, GroupState>() //Key = LabelId, Value = GroupState
 
         var currentLabel = -1
         val mappedPixels = HashMap<Point, Int>()
@@ -30,15 +32,13 @@ class VisionPixels(private val image: BufferedImage) {
                 val mappedNeighbors =
                     neighbors.mapNotNull { pt -> mappedPixels[pt]?.run { pt to this } }
 
-                mappedNeighbors.forEach { (pt, label) ->
-                    val (nx, ny) = pt
-                    val neighborPixel = Pixel.fromInt(image.getRGB(nx, ny))
-                    val neighborPixelHsl = neighborPixel.toHxHyLV()
-
-                    val difference = currentPixelHsl.cosineDistance(neighborPixelHsl)
-                    if (difference > bestDifference) {
-                        bestDifference = difference
-                        closestLabel = label
+                mappedNeighbors.forEach { (_, label) ->
+                    groupStateMap[label]?.let { (groupHsl, _) ->
+                        val difference = currentPixelHsl.cosineDistance(groupHsl)
+                        if (difference > bestDifference) {
+                            bestDifference = difference
+                            closestLabel = label
+                        }
                     }
                 }
 
@@ -47,6 +47,13 @@ class VisionPixels(private val image: BufferedImage) {
                 } else {
                     ++currentLabel
                 }
+
+                val (currentAverage, samples) = groupStateMap[actualLabel] ?: currentPixelHsl to 0
+                val newSampleSize = samples + 1
+                val difference = currentAverage - currentPixelHsl
+                val newAverage = currentAverage + (difference / newSampleSize.toDouble())
+
+                groupStateMap[actualLabel] = newAverage to newSampleSize
 
                 mappedPixels[x to y] = actualLabel
                 dataStore[x][y] = PixelLabel(currentPixel, actualLabel)

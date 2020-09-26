@@ -7,14 +7,20 @@ import java.io.File
 import javax.imageio.ImageIO
 
 fun main() {
-    val inputImageFile = File("data/blurred.jpg")
-    val outputImageFile = File("output/${inputImageFile.nameWithoutExtension}-vision.png")
+    val inputImageFile = File("data/bs.jpg")
+    val threshold = 0.75
+    val outputImageFile = File("output/${inputImageFile.nameWithoutExtension}-vision-$threshold.png")
     val inputImage = ImageIO.read(inputImageFile)
 
     val visionPixels = VisionPixels(inputImage)
-    val labels = visionPixels.labelPixels(0.95)
+    val labels = visionPixels.labelPixels(threshold)
 
     createSuperPixelImage(labels, outputImageFile)
+
+    val uniqueLabels = labels.flatten().distinctBy { it.label }.size
+    println("Label Count: $uniqueLabels")
+
+    println("Done!")
 }
 
 private fun createSuperPixelImage(labels: Array<Array<PixelLabel>>, outputFile: File) {

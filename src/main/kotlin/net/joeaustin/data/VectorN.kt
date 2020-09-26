@@ -107,6 +107,20 @@ class VectorN(vararg val elements: Double) {
         return VectorN(*returnArray)
     }
 
+    operator fun times(scalar: Double): VectorN {
+        val returnArray = DoubleArray(this.size) { i ->
+            this[i] * scalar
+        }
+        return VectorN(*returnArray)
+    }
+
+    operator fun div(scalar: Double): VectorN {
+        val returnArray = DoubleArray(this.size) { i ->
+            this[i] / scalar
+        }
+        return VectorN(*returnArray)
+    }
+
     infix fun dot(other: VectorN): Double {
         val minSize = min(this.size, other.size)
         var value = 0.0
