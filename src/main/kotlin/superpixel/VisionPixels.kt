@@ -14,7 +14,7 @@ class VisionPixels(private val image: BufferedImage) {
     private val height = image.height
 
     fun labelPixels(threshold: Double = 0.9): Array<Array<PixelLabel>> {
-        val dataStore = Array(width) { Array(height) { PixelLabel(Pixel(0, 0, 0, 0), 0) } }
+        val dataStore = Array(width) { Array(height) { PixelLabel(Pixel(0, 0, 0, 0), 0, 0 with 0) } }
         val groupStateMap = HashMap<Int, GroupState>() //Key = LabelId, Value = GroupState
 
         var currentLabel = -1
@@ -57,7 +57,7 @@ class VisionPixels(private val image: BufferedImage) {
                 groupStateMap[actualLabel] = newAverage to 0
 
                 mappedPixels[x with y] = actualLabel
-                dataStore[x][y] = PixelLabel(currentPixel, actualLabel)
+                dataStore[x][y] = PixelLabel(currentPixel, actualLabel, x with y)
             }
         }
 
@@ -92,9 +92,25 @@ class VisionPixels(private val image: BufferedImage) {
         textureThreshold: Double = 0.9,
         initialThreshold: Double = 0.95
     ): Array<Array<PixelLabel>> {
-        val dataStore = Array(width) { Array(height) { PixelLabel(Pixel(0, 0, 0, 0), 0) } }
+        val dataStore = labelPixels(initialThreshold)
+        val colorRegions = dataStore.flatten().groupBy { it.label }
+        val colorLabelToTextureLabel = HashMap<Int, Int>() //Key = color label; value = new label with texture
+
+
 
 
         return dataStore
+    }
+
+    private fun getRegionTextureVector(pixelLabels: List<PixelLabel>): VectorN {
+        val colorVectors = pixelLabels.map { it.pixel.toHxHyLV() }
+        var averageColor = VectorN(0.0, 0.0, 0.0, 0.0)
+        colorVectors.forEach { colorVector ->
+            averageColor += colorVector
+        }
+        averageColor /= pixelLabels.size.toDouble()
+
+        
+
     }
 }
