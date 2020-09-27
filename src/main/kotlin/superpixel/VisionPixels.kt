@@ -1,13 +1,10 @@
 package superpixel
 
-import net.joeaustin.data.Pixel
-import net.joeaustin.data.PixelLabel
-import net.joeaustin.data.VectorN
+import net.joeaustin.data.*
 import java.awt.image.BufferedImage
 import kotlin.math.max
 import kotlin.math.min
 
-typealias Point = Pair<Int, Int>
 typealias GroupState = Pair<VectorN, Int> //Current Average Vector and Sample Size
 
 private const val sigma = 1.0
@@ -59,7 +56,7 @@ class VisionPixels(private val image: BufferedImage) {
 
                 groupStateMap[actualLabel] = newAverage to 0
 
-                mappedPixels[x to y] = actualLabel
+                mappedPixels[x with y] = actualLabel
                 dataStore[x][y] = PixelLabel(currentPixel, actualLabel)
             }
         }
@@ -78,16 +75,26 @@ class VisionPixels(private val image: BufferedImage) {
         val maxY = min(height, y + radius)
 
         val size = ((maxX - minX + 1) * (maxY - minY + 1)) - 1
-        val neighbors = ArrayList<Pair<Int, Int>>(size)
+        val neighbors = ArrayList<Point>(size)
 
         for (i in minX..maxX) {
             for (j in minY..maxY) {
                 if (i != x || j != y) {
-                    neighbors.add(i to j)
+                    neighbors.add(i with j)
                 }
             }
         }
 
         return neighbors
+    }
+
+    fun labelImageWithTextureCondensing(
+        textureThreshold: Double = 0.9,
+        initialThreshold: Double = 0.95
+    ): Array<Array<PixelLabel>> {
+        val dataStore = Array(width) { Array(height) { PixelLabel(Pixel(0, 0, 0, 0), 0) } }
+
+
+        return dataStore
     }
 }
