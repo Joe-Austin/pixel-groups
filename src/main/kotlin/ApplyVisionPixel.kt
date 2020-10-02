@@ -1,8 +1,7 @@
-import net.joeaustin.data.Pixel
-import net.joeaustin.data.PixelLabel
-import net.joeaustin.data.Point
-import net.joeaustin.data.with
+import net.joeaustin.data.*
 import net.joeaustin.utilities.bounds
+import org.json.JSONArray
+import org.json.JSONObject
 import superpixel.VisionPixels
 import java.awt.color.ColorSpace.TYPE_RGB
 import java.awt.image.BufferedImage
@@ -11,13 +10,22 @@ import javax.imageio.ImageIO
 
 fun main() {
     val inputImageFile = File("data/astro.png")
+    val expirementName = "avg"
     val threshold = 0.95
-    val outputGroupedFile = File("output/${inputImageFile.nameWithoutExtension}-vision-$threshold.png")
-    val overlayOutputImageFile = File("output/${inputImageFile.nameWithoutExtension}-vision-$threshold-overlay.png")
+    val outputGroupedFile = File("output/${inputImageFile.nameWithoutExtension}-vision-$expirementName-$threshold.png")
+    val overlayOutputImageFile =
+        File("output/${inputImageFile.nameWithoutExtension}-vision-$expirementName-$threshold-overlay.png")
     val inputImage = ImageIO.read(inputImageFile)
 
     val visionPixels = VisionPixels(inputImage)
-    val labels = visionPixels.labelPixels(threshold)
+    val labels = visionPixels.labelPixelsWithAverage(threshold)
+
+    dumpLabelsToFiles(File("output/astro"), inputImage, false, labels)
+
+    return
+
+    //val labels = visionPixels.labelPixels(threshold)
+    //val labels = visionPixels.labelImageWithTextureCondensing(threshold, threshold)
 
     println("Creating grouped image")
     createSuperPixelImage(labels, outputGroupedFile)
@@ -30,11 +38,21 @@ fun main() {
     overlayPixelBoundsOnImage(inputImage, labels, overlayOutputImageFile)
     println("Label overlay image created")
 
+    val smallGroups = labels.flatten().groupBy { it.label }.filter { it.value.size <= 1 }.size
+    println("$smallGroups small groups")
+    /*labels.flatten().groupBy { it.label }.toList().sortedBy { it.second.size }.take(15)
+        .forEach { (label, pixels) ->
+            println("$label - ${pixels.size} pixels")
+            pixels.forEach { println("${it.pixel} -> ${it.point}") }
+            println()
+        }*/
+
     println("Done!")
 }
 
 private fun createSuperPixelImage(labels: Array<Array<PixelLabel>>, outputFile: File) {
-    val labelMap = getPixelLabelMap(labels)
+    //val labelMap = getPixelLabelMap(labels)
+    val labelMap = getPixelLabelMapByHueAverage(labels)
     val width = labels.size
     val height = labels[0].size
     val outImage = BufferedImage(width, height, TYPE_RGB)
@@ -61,6 +79,25 @@ private fun getPixelLabelMap(labels: Array<Array<PixelLabel>>): Map<Int, Pixel> 
         val b = pixelLabels.sumBy { it.pixel.b } / size
 
         pixelMap[label] = Pixel(a, r, g, b)
+    }
+
+    return pixelMap
+}
+
+private fun getPixelLabelMapByHueAverage(labels: Array<Array<PixelLabel>>): Map<Int, Pixel> {
+    val pixelMap = HashMap<Int, Pixel>() //Key = Label; Value = Average Pixel Value
+
+    labels.flatten().groupBy { it.label }.forEach { (label, pixelLabels) ->
+        //val pixelValues =
+        var averageHsl = VectorN(0.0, 0.0, 0.0, 0.0)
+
+        pixelLabels.map { it.pixel.toHxHySL() }.forEach { pixelHsl ->
+            averageHsl += pixelHsl
+        }
+
+        averageHsl /= pixelLabels.size.toDouble()
+
+        pixelMap[label] = Pixel.fromHxHySL(averageHsl)
     }
 
     return pixelMap
@@ -107,5 +144,47 @@ private fun overlayPixelBoundsOnImage(
     }
 
     ImageIO.write(outImage, "PNG", outputFile)
+}
+
+private fun dumpLabelsToFiles(
+    dir: File,
+    source: BufferedImage,
+    useAverageColor: Boolean,
+    labels: Array<Array<PixelLabel>>
+) {
+    val labelMap = getPixelLabelMapByHueAverage(labels)
+    val width = labels.size
+    val height = labels[0].size
+
+    val labelGroups = labels.flatten().groupBy { it.label }
+    val json = JSONObject()
+
+    labelGroups.forEach { (label, pixels) ->
+        val outImage = BufferedImage(width, height, TYPE_RGB)
+        val firstPixelPoint = pixels.first().point
+        val outputFileName = "${pixels.size}-$label-$firstPixelPoint.png"
+        val pixelArray = JSONArray(pixels.map { "${it.point.x}, ${it.point.y}" })
+        json.put(label.toString(), pixelArray)
+
+        pixels.forEach { pixel ->
+            val (x, y) = pixel.point
+            val pixelValue = if (useAverageColor) {
+                labelMap[pixel.label]?.toInt() ?: throw RuntimeException("Missing pixel label")
+            } else {
+                source.getRGB(x, y)
+            }
+
+            outImage.setRGB(x, y, pixelValue)
+        }
+
+        val outputFile = File(dir, outputFileName)
+        ImageIO.write(outImage, "PNG", outputFile)
+    }
+
+    println("Writing Summary File")
+    File(dir, "_Summary_.json").outputStream().bufferedWriter().use { writer ->
+        writer.write(json.toString(2))
+    }
+
 
 }

@@ -2,6 +2,7 @@ package net.joeaustin.data
 
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.math.pow
 import kotlin.math.sqrt
 
 class VectorN(vararg val elements: Double) {
@@ -60,6 +61,16 @@ class VectorN(vararg val elements: Double) {
         } else {
             throw UnsupportedOperationException("Cannot perform cosine similarity on a zero vector")
         }
+    }
+
+    fun distanceTo(other: VectorN): Double {
+        if (this.size != other.size) throw UnsupportedOperationException("Cannot get distance to unequal vectors")
+        var sum = 0.0
+        for (i in 0 until size) {
+            sum += sqrt((this[i] - other[i]).pow(2))
+        }
+
+        return sum
     }
 
     fun magnitude(): Double {

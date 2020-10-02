@@ -2,7 +2,13 @@ package net.joeaustin.data
 
 import kotlin.math.*
 
+private const val WEIGHT_RED = .3
+private const val WEIGHT_GREEN = .59
+private const val WEIGHT_BLUE = .11
+
 data class Pixel(val a: Int, val r: Int, val g: Int, val b: Int) {
+
+    val luminosity: Double by lazy { computeLuminosity() }
 
     fun toRgbVector(): VectorN {
         return VectorN(r.toDouble(), g.toDouble(), b.toDouble())
@@ -54,7 +60,7 @@ data class Pixel(val a: Int, val r: Int, val g: Int, val b: Int) {
         return VectorN(h, s, l)
     }
 
-    fun toHxHyLV(): VectorN {
+    fun toHxHySL(): VectorN {
         val hsl = toHsl()
         val h = hsl[0]
         val s = hsl[1]
@@ -67,6 +73,14 @@ data class Pixel(val a: Int, val r: Int, val g: Int, val b: Int) {
         return VectorN(hx, hy, s, l)
     }
 
+    private fun computeLuminosity(): Double {
+        val rValue = WEIGHT_RED * r
+        val gValue = WEIGHT_GREEN * g
+        val bValue = WEIGHT_BLUE * b
+
+        return rValue + gValue + bValue
+    }
+
     companion object {
         fun fromInt(color: Int): Pixel {
             val a = 0xFF and (color shr 24)
@@ -75,6 +89,18 @@ data class Pixel(val a: Int, val r: Int, val g: Int, val b: Int) {
             val b = 0xFF and (color shr 0)
 
             return Pixel(a, r, g, b)
+        }
+
+        fun fromHxHySL(hxhyslVector: VectorN): Pixel {
+            val hx = hxhyslVector[0]
+            val hy = hxhyslVector[1]
+            val s = hxhyslVector[2]
+            val l = hxhyslVector[3]
+
+            //val degrees = Math.toDegrees(atan2(hy, hx)) / 360.0
+            val degrees = Math.toDegrees(atan2(hx, hy)) / 360.0
+
+            return fromHsl(VectorN(degrees, s, l))
         }
 
         fun fromHsl(hslVector: VectorN): Pixel {

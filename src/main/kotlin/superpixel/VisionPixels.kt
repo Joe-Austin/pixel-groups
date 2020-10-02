@@ -2,16 +2,69 @@ package superpixel
 
 import net.joeaustin.data.*
 import java.awt.image.BufferedImage
+import java.lang.RuntimeException
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.math.pow
+import kotlin.math.sqrt
 
 typealias GroupState = Pair<VectorN, Int> //Current Average Vector and Sample Size
 
-private const val sigma = 1.0
+private const val SIGMA = 1.0
+private const val MIN_GROUP_SIZE = 5
 
 class VisionPixels(private val image: BufferedImage) {
     private val width = image.width
     private val height = image.height
+
+    fun labelPixelsWithAverage(threshold: Double = 0.9): Array<Array<PixelLabel>> {
+        val dataStore = Array(width) { Array(height) { PixelLabel(Pixel(0, 0, 0, 0), 0, 0 with 0) } }
+        val groupStateMap = HashMap<Int, GroupState>() //Key = LabelId, Value = GroupState
+
+        var currentLabel = -1
+        val mappedPixels = HashMap<Point, Int>()
+
+        for (y in 0 until height) {
+            for (x in 0 until width) {
+                val currentPixel = Pixel.fromInt(image.getRGB(x, y))
+                val currentPixelHsl = currentPixel.toHxHySL()
+                var bestDifference = -1.0
+                var closestLabel = -1
+
+                val neighbors = getNeighborLocations(x, y, 1, width, height)
+                val mappedNeighbors =
+                    neighbors.mapNotNull { pt -> mappedPixels[pt]?.run { pt to this } }
+
+                mappedNeighbors.forEach { (_, label) ->
+                    groupStateMap[label]?.let { (groupHsl, _) ->
+                        val difference = currentPixelHsl.cosineDistance(groupHsl)
+                        if (difference > bestDifference) {
+                            bestDifference = difference
+                            closestLabel = label
+                        }
+                    }
+                }
+
+                val actualLabel = if (bestDifference >= threshold) {
+                    closestLabel
+                } else {
+                    ++currentLabel
+                }
+
+                val (currentAverage, samples) = groupStateMap[actualLabel] ?: currentPixelHsl to 0
+                val newSampleSize = samples + 1
+                val difference = currentPixelHsl - currentAverage
+                val newAverage = currentAverage + (difference / newSampleSize.toDouble())
+
+                groupStateMap[actualLabel] = newAverage to 0
+
+                mappedPixels[x with y] = actualLabel
+                dataStore[x][y] = PixelLabel(currentPixel, actualLabel, x with y)
+            }
+        }
+
+        return dataStore
+    }
 
     fun labelPixels(threshold: Double = 0.9): Array<Array<PixelLabel>> {
         val dataStore = Array(width) { Array(height) { PixelLabel(Pixel(0, 0, 0, 0), 0, 0 with 0) } }
@@ -23,7 +76,7 @@ class VisionPixels(private val image: BufferedImage) {
         for (y in 0 until height) {
             for (x in 0 until width) {
                 val currentPixel = Pixel.fromInt(image.getRGB(x, y))
-                val currentPixelHsl = currentPixel.toHxHyLV()
+                val currentPixelHsl = currentPixel.toHxHySL()
                 var bestDifference = -1.0
                 var closestLabel = -1
 
@@ -49,8 +102,8 @@ class VisionPixels(private val image: BufferedImage) {
 
                 val (currentAverage, samples) = groupStateMap[actualLabel] ?: currentPixelHsl to 0
                 //val newSampleSize = samples + 1
-                val groupVote = currentAverage * sigma
-                val currentVote = currentPixelHsl * (1 - sigma)
+                val groupVote = currentAverage * SIGMA
+                val currentVote = currentPixelHsl * (1 - SIGMA)
                 //val newAverage = currentAverage + (difference / newSampleSize.toDouble())
                 val newAverage = groupVote + currentVote
 
@@ -71,8 +124,8 @@ class VisionPixels(private val image: BufferedImage) {
         val minX = max(0, x - radius)
         val minY = max(0, y - radius)
 
-        val maxX = min(width, x + radius)
-        val maxY = min(height, y + radius)
+        val maxX = min(width - 1, x + radius)
+        val maxY = min(height - 1, y + radius)
 
         val size = ((maxX - minX + 1) * (maxY - minY + 1)) - 1
         val neighbors = ArrayList<Point>(size)
@@ -88,29 +141,156 @@ class VisionPixels(private val image: BufferedImage) {
         return neighbors
     }
 
+    /*fun labelImageWithSmallGroupConsolidation(
+        threshold: Double
+    ): Array<Array<PixelLabel>> {
+        val dataStore = labelPixels(threshold)
+        val smallRegions = dataStore.flatten().groupBy { it.label }.filter { it.value.size < MIN_GROUP_SIZE }
+        val colorLabelToTextureVectorMap = HashMap<Int, VectorN>() // Key = color label; value = texture vector
+
+        for (y in 0 until height) {
+            for (x in 0 until width) {
+                val currentLabel = dataStore[x][y].label
+                val currentTextureVector = colorLabelToTextureVectorMap.getOrPut(currentLabel) {
+                    val region = colorRegions[currentLabel]
+                        ?: throw RuntimeException("Color label $currentLabel was unexpectedly not found in color region map")
+                    getRgbRegionTextureVector(region)
+                }
+
+                getNeighborLocations(x, y, 1, width, height)
+                    .map { (x, y) -> dataStore[x][y].label }
+                    .distinct()
+                    .forEach { neighborLabel ->
+                        if (neighborLabel != currentLabel) {
+                            //Determine if they should be merged
+                            val neighborRegion = colorRegions[neighborLabel]
+                                ?: throw RuntimeException("Color label $neighborLabel was unexpectedly not found in color region map")
+                            val neighborTextureVector = colorLabelToTextureVectorMap.getOrPut(neighborLabel) {
+                                getRgbRegionTextureVector(neighborRegion)
+                            }
+
+                            val shouldMerge =
+                                currentTextureVector.cosineDistance(neighborTextureVector) >= textureThreshold
+                            if (shouldMerge) {
+                                //Set neighbor region's labels to that of the current label
+                                neighborRegion.forEach { (_, _, point) ->
+                                    val currentDataStoreLabel = dataStore[point.x][point.y]
+                                    dataStore[point.x][point.y] = currentDataStoreLabel.copy(label = currentLabel)
+                                }
+                            }
+                        }
+                    }
+            }
+        }
+
+        return dataStore
+    }*/
+
     fun labelImageWithTextureCondensing(
         textureThreshold: Double = 0.9,
         initialThreshold: Double = 0.95
     ): Array<Array<PixelLabel>> {
         val dataStore = labelPixels(initialThreshold)
         val colorRegions = dataStore.flatten().groupBy { it.label }
-        val colorLabelToTextureLabel = HashMap<Int, Int>() //Key = color label; value = new label with texture
+        //val colorLabelToTextureLabel = HashMap<Int, Int>() //Key = color label; value = new label with texture
+        val colorLabelToTextureVectorMap = HashMap<Int, VectorN>() // Key = color label; value = texture vector
 
+        for (y in 0 until height) {
+            for (x in 0 until width) {
+                val currentLabel = dataStore[x][y].label
+                val currentTextureVector = colorLabelToTextureVectorMap.getOrPut(currentLabel) {
+                    val region = colorRegions[currentLabel]
+                        ?: throw RuntimeException("Color label $currentLabel was unexpectedly not found in color region map")
+                    getRgbRegionTextureVector(region)
+                }
 
+                getNeighborLocations(x, y, 1, width, height)
+                    .map { (x, y) -> dataStore[x][y].label }
+                    .distinct()
+                    .forEach { neighborLabel ->
+                        if (neighborLabel != currentLabel) {
+                            //Determine if they should be merged
+                            val neighborRegion = colorRegions[neighborLabel]
+                                ?: throw RuntimeException("Color label $neighborLabel was unexpectedly not found in color region map")
+                            val neighborTextureVector = colorLabelToTextureVectorMap.getOrPut(neighborLabel) {
+                                getRgbRegionTextureVector(neighborRegion)
+                            }
 
+                            val shouldMerge =
+                                currentTextureVector.cosineDistance(neighborTextureVector) >= textureThreshold
+                            if (shouldMerge) {
+                                //Set neighbor region's labels to that of the current label
+                                neighborRegion.forEach { (_, _, point) ->
+                                    val currentDataStoreLabel = dataStore[point.x][point.y]
+                                    dataStore[point.x][point.y] = currentDataStoreLabel.copy(label = currentLabel)
+                                }
+                            }
+                        }
+                    }
+            }
+        }
 
         return dataStore
     }
 
     private fun getRegionTextureVector(pixelLabels: List<PixelLabel>): VectorN {
-        val colorVectors = pixelLabels.map { it.pixel.toHxHyLV() }
+        val colorVectors = pixelLabels.map { it.pixel.toHxHySL() }
         var averageColor = VectorN(0.0, 0.0, 0.0, 0.0)
+
         colorVectors.forEach { colorVector ->
             averageColor += colorVector
         }
         averageColor /= pixelLabels.size.toDouble()
 
-        
+        val averageLightness = averageColor[3]
 
+        val variance = colorVectors.sumByDouble { v -> (v[3] - averageLightness).pow(2.0) }
+        val std = sqrt(variance)
+
+        return averageColor.append(std)
+    }
+
+    private fun getRegionLuminanceTexture(pixelLabels: List<PixelLabel>): VectorN {
+        val colorVectors = pixelLabels.map { it.pixel.toHxHySL() }
+        var averageColor = VectorN(0.0, 0.0, 0.0, 0.0)
+
+        colorVectors.forEach { colorVector ->
+            averageColor += colorVector
+        }
+        averageColor /= pixelLabels.size.toDouble()
+
+        val averageLightness = averageColor[3]
+
+        val variance = colorVectors.sumByDouble { v -> (v[3] - averageLightness).pow(2.0) }
+        val std = sqrt(variance)
+
+        return averageColor.append(std)
+    }
+
+    private fun getRgbRegionTextureVector(pixelLabels: List<PixelLabel>): VectorN {
+        val hslColorVectors = pixelLabels.map { it.pixel.toHxHySL() }
+        val rgbColorVectors = pixelLabels.map { it.pixel.toRgbVector() }
+
+        var averageHsl = VectorN(0.0, 0.0, 0.0, 0.0)
+        var averageRgb = VectorN(0.0, 0.0, 0.0)
+
+        for (i in hslColorVectors.indices) {
+            averageHsl += hslColorVectors[i]
+            averageRgb += rgbColorVectors[i]
+        }
+
+        averageHsl /= pixelLabels.size.toDouble()
+        averageRgb /= pixelLabels.size.toDouble()
+
+
+        var sumRgbVariance = VectorN(0.0, 0.0, 0.0)
+        rgbColorVectors.forEach { v ->
+            val computedVector = v - averageRgb
+            sumRgbVariance += computedVector * computedVector
+        }
+
+        val stdRgb = VectorN(sqrt(sumRgbVariance[0]), sqrt(sumRgbVariance[1]), sqrt(sumRgbVariance[2]))
+
+        return averageHsl.append(stdRgb[0], stdRgb[1], stdRgb[2])
     }
 }
