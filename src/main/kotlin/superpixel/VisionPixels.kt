@@ -141,50 +141,46 @@ class VisionPixels(private val image: BufferedImage) {
         return neighbors
     }
 
-    /*fun labelImageWithSmallGroupConsolidation(
-        threshold: Double
-    ): Array<Array<PixelLabel>> {
-        val dataStore = labelPixels(threshold)
-        val smallRegions = dataStore.flatten().groupBy { it.label }.filter { it.value.size < MIN_GROUP_SIZE }
-        val colorLabelToTextureVectorMap = HashMap<Int, VectorN>() // Key = color label; value = texture vector
+    fun mergeSmallGroups(dataStore: Array<Array<PixelLabel>>, minGroupSize: Int = MIN_GROUP_SIZE) {
+        val smallRegions = dataStore.flatten().groupBy { it.label }.filter { it.value.size < minGroupSize }.toMutableMap()
+        val joinMap = HashMap<Int,List<PixelLabel>> ()
+        println("Small group size: ${smallRegions.size}")
 
-        for (y in 0 until height) {
-            for (x in 0 until width) {
+        smallRegions.forEach { (_, pixels) ->
+            var bestLabelMatch = 0
+            var bestMatchDifference = Double.MIN_VALUE
+
+            pixels.forEach { pixel ->
+                val currentPixelHsl = pixel.pixel.toHxHySL()
+                val (x, y) = pixel.point
                 val currentLabel = dataStore[x][y].label
-                val currentTextureVector = colorLabelToTextureVectorMap.getOrPut(currentLabel) {
-                    val region = colorRegions[currentLabel]
-                        ?: throw RuntimeException("Color label $currentLabel was unexpectedly not found in color region map")
-                    getRgbRegionTextureVector(region)
-                }
-
                 getNeighborLocations(x, y, 1, width, height)
-                    .map { (x, y) -> dataStore[x][y].label }
-                    .distinct()
-                    .forEach { neighborLabel ->
-                        if (neighborLabel != currentLabel) {
-                            //Determine if they should be merged
-                            val neighborRegion = colorRegions[neighborLabel]
-                                ?: throw RuntimeException("Color label $neighborLabel was unexpectedly not found in color region map")
-                            val neighborTextureVector = colorLabelToTextureVectorMap.getOrPut(neighborLabel) {
-                                getRgbRegionTextureVector(neighborRegion)
-                            }
-
-                            val shouldMerge =
-                                currentTextureVector.cosineDistance(neighborTextureVector) >= textureThreshold
-                            if (shouldMerge) {
-                                //Set neighbor region's labels to that of the current label
-                                neighborRegion.forEach { (_, _, point) ->
-                                    val currentDataStoreLabel = dataStore[point.x][point.y]
-                                    dataStore[point.x][point.y] = currentDataStoreLabel.copy(label = currentLabel)
-                                }
-                            }
+                    .map { (x, y) -> dataStore[x][y] }
+                    .filter { it.label != currentLabel }
+                    .forEach { neighborPixel ->
+                        val currentDifference = currentPixelHsl.cosineDistance(neighborPixel.pixel.toHxHySL())
+                        if (currentDifference > bestMatchDifference) {
+                            bestLabelMatch = neighborPixel.label
+                            bestMatchDifference = currentDifference
                         }
                     }
             }
+
+            //Assign best label to this group in the data store
+            pixels.forEach { pixel ->
+                val (x, y) = pixel.point
+                dataStore[x][y] = dataStore[x][y].copy(label = bestLabelMatch)
+            }
+
+            smallRegions.computeIfPresent(bestLabelMatch){_, currentPixels ->
+                currentPixels + pixels
+            }
         }
 
-        return dataStore
-    }*/
+        val postMergeSmallRegions = dataStore.flatten().groupBy { it.label }.filter { it.value.size < minGroupSize }
+        println("Post Merge Small group size: ${postMergeSmallRegions.size}")
+    }
+
 
     fun labelImageWithTextureCondensing(
         textureThreshold: Double = 0.9,
@@ -293,4 +289,10 @@ class VisionPixels(private val image: BufferedImage) {
 
         return averageHsl.append(stdRgb[0], stdRgb[1], stdRgb[2])
     }
+}
+
+
+private fun <T> List<T>.debug(run: List<T>.() -> Unit): List<T> {
+    run(this)
+    return this
 }

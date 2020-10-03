@@ -9,7 +9,8 @@ import java.io.File
 import javax.imageio.ImageIO
 
 fun main() {
-    val inputImageFile = File("data/astro.png")
+    val inputImageFile = File("data/bs.jpg")
+    val labelDumpDir: String? = null//"output/astro"
     val expirementName = "avg"
     val threshold = 0.95
     val outputGroupedFile = File("output/${inputImageFile.nameWithoutExtension}-vision-$expirementName-$threshold.png")
@@ -18,14 +19,11 @@ fun main() {
     val inputImage = ImageIO.read(inputImageFile)
 
     val visionPixels = VisionPixels(inputImage)
-    val labels = visionPixels.labelPixelsWithAverage(threshold)
-
-    dumpLabelsToFiles(File("output/astro"), inputImage, false, labels)
-
-    return
-
-    //val labels = visionPixels.labelPixels(threshold)
+    //val labels = visionPixels.labelPixelsWithAverage(threshold)
+    val labels = visionPixels.labelPixels(threshold)
     //val labels = visionPixels.labelImageWithTextureCondensing(threshold, threshold)
+    visionPixels.mergeSmallGroups(labels, 16)
+
 
     println("Creating grouped image")
     createSuperPixelImage(labels, outputGroupedFile)
@@ -38,7 +36,7 @@ fun main() {
     overlayPixelBoundsOnImage(inputImage, labels, overlayOutputImageFile)
     println("Label overlay image created")
 
-    val smallGroups = labels.flatten().groupBy { it.label }.filter { it.value.size <= 1 }.size
+    val smallGroups = labels.flatten().groupBy { it.label }.filter { it.value.size < 6 }.size
     println("$smallGroups small groups")
     /*labels.flatten().groupBy { it.label }.toList().sortedBy { it.second.size }.take(15)
         .forEach { (label, pixels) ->
@@ -46,6 +44,12 @@ fun main() {
             pixels.forEach { println("${it.pixel} -> ${it.point}") }
             println()
         }*/
+
+    labelDumpDir?.let { dumpDir ->
+        println("Dumping labels to $dumpDir")
+        dumpLabelsToFiles(File(dumpDir), inputImage, false, labels)
+    }
+
 
     println("Done!")
 }
@@ -163,8 +167,13 @@ private fun dumpLabelsToFiles(
         val outImage = BufferedImage(width, height, TYPE_RGB)
         val firstPixelPoint = pixels.first().point
         val outputFileName = "${pixels.size}-$label-$firstPixelPoint.png"
+        val outputFile = File(dir, outputFileName)
         val pixelArray = JSONArray(pixels.map { "${it.point.x}, ${it.point.y}" })
-        json.put(label.toString(), pixelArray)
+
+        json.put(label.toString(), JSONObject().apply {
+            put("file", outputFile.toPath().toUri().toString())
+            put("pixels", pixelArray)
+        })
 
         pixels.forEach { pixel ->
             val (x, y) = pixel.point
@@ -176,8 +185,6 @@ private fun dumpLabelsToFiles(
 
             outImage.setRGB(x, y, pixelValue)
         }
-
-        val outputFile = File(dir, outputFileName)
         ImageIO.write(outImage, "PNG", outputFile)
     }
 
