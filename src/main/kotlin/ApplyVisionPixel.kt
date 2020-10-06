@@ -7,9 +7,11 @@ import java.awt.color.ColorSpace.TYPE_RGB
 import java.awt.image.BufferedImage
 import java.io.File
 import javax.imageio.ImageIO
+import kotlin.math.log2
+import kotlin.math.round
 
 fun main() {
-    val inputImageFile = File("data/bs.jpg")
+    val inputImageFile = File("data/astro.png")
     val labelDumpDir: String? = null//"output/astro"
     val expirementName = "avg"
     val threshold = 0.95
@@ -36,7 +38,7 @@ fun main() {
     overlayPixelBoundsOnImage(inputImage, labels, overlayOutputImageFile)
     println("Label overlay image created")
 
-    val smallGroups = labels.flatten().groupBy { it.label }.filter { it.value.size < 6 }.size
+    val smallGroups = labels.flatten().groupBy { it.label }.filter { it.value.size < 16 }.size
     println("$smallGroups small groups")
     /*labels.flatten().groupBy { it.label }.toList().sortedBy { it.second.size }.take(15)
         .forEach { (label, pixels) ->
@@ -50,8 +52,35 @@ fun main() {
         dumpLabelsToFiles(File(dumpDir), inputImage, false, labels)
     }
 
+    computeAndPrintGroupSimilarity(labels, 1444, 3358)
 
     println("Done!")
+}
+
+private fun computeAndPrintGroupSimilarity(labels: Array<Array<PixelLabel>>, label1: Int, label2: Int) {
+    val averagePixels = getPixelLabelMapByHueAverage(labels)
+    val labelGroups = labels.flatten().groupBy { it.label }
+
+    val pixelGroup1 = labelGroups[label1]?.map { it.pixel } ?: throw RuntimeException("Label $label1 does not exist")
+    val pixelGroup2 = labelGroups[label2]?.map { it.pixel } ?: throw RuntimeException("Label $label2 does not exist")
+
+    val pixelGroup1Average = averagePixels[label1] ?: throw RuntimeException("Label $label1 does not exist")
+    val pixelGroup2Average = averagePixels[label2] ?: throw RuntimeException("Label $label2 does not exist")
+
+    var pixelGroup1Hsl = pixelGroup1Average.toHxHySL()
+    var pixelGroup2Hsl = pixelGroup2Average.toHxHySL()
+
+    println("HSL Cosine Similarity Between Pixel Group 1 -> 2 = ${pixelGroup1Hsl.cosineDistance(pixelGroup2Hsl)}")
+
+    val pixelGroup1Entropy = computePixelGroupEntropy(pixelGroup1)
+    val pixelGroup2Entropy = computePixelGroupEntropy(pixelGroup2)
+
+    pixelGroup1Hsl = pixelGroup1Hsl.append(pixelGroup1Entropy)
+    pixelGroup2Hsl = pixelGroup2Hsl.append(pixelGroup2Entropy)
+
+    println("HSL & Entropy Cosine Similarity Between Pixel Group 1 -> 2 = ${pixelGroup1Hsl.cosineDistance(pixelGroup2Hsl)}")
+    println(pixelGroup1Hsl)
+    println(pixelGroup2Hsl)
 }
 
 private fun createSuperPixelImage(labels: Array<Array<PixelLabel>>, outputFile: File) {
@@ -194,4 +223,21 @@ private fun dumpLabelsToFiles(
     }
 
 
+}
+
+
+fun computePixelGroupEntropy(group: List<Pixel>): Double {
+    val lightnessGroup = group.map { round(it.toHsl()[2] * 100) }.groupBy { it }
+    val maxEntropy = .01 * log2(0.01) * -100
+    val possibilities = lightnessGroup.values.sumBy { it.size }.toDouble()
+
+    println("Max: ${lightnessGroup.maxByOrNull { it.value.size }?.value?.size}")
+    println("Min: ${lightnessGroup.minByOrNull { it.value.size }?.value?.size}")
+
+    return lightnessGroup
+        .toList()
+        .sumOf { (_, group) ->
+            val p = group.size / possibilities
+            p * log2(p) / maxEntropy
+        } * -1
 }
