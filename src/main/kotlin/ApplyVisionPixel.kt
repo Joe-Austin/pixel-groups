@@ -221,18 +221,16 @@ private fun dumpLabelsToFiles(
     File(dir, "_Summary_.json").outputStream().bufferedWriter().use { writer ->
         writer.write(json.toString(2))
     }
-
-
 }
 
-
-fun computePixelGroupEntropy(group: List<Pixel>): Double {
-    val lightnessGroup = group.map { round(it.toHsl()[2] * 100) }.groupBy { it }
-    val maxEntropy = .01 * log2(0.01) * -100
-    val possibilities = lightnessGroup.values.sumBy { it.size }.toDouble()
+fun computePixelGroupEntropy(pixelGroup: List<Pixel>): Double {
+    val lightnessGroup = pixelGroup.map { round(it.toHsl()[2] * 100) }.groupBy { it }
+    val possibilities = pixelGroup.size.toDouble()
+    val maxEntropy = (1.0 / possibilities) * log2((1.0 / possibilities)) * -possibilities
 
     println("Max: ${lightnessGroup.maxByOrNull { it.value.size }?.value?.size}")
     println("Min: ${lightnessGroup.minByOrNull { it.value.size }?.value?.size}")
+    println("Max Entropy: $maxEntropy")
 
     return lightnessGroup
         .toList()
