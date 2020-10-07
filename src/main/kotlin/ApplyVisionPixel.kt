@@ -11,7 +11,7 @@ import kotlin.math.log2
 import kotlin.math.round
 
 fun main() {
-    val inputImageFile = File("data/astro.png")
+    val inputImageFile = File("data/hair3.jpg")
     val labelDumpDir: String? = null//"output/astro"
     val expirementName = "avg"
     val threshold = 0.95
@@ -38,8 +38,8 @@ fun main() {
     overlayPixelBoundsOnImage(inputImage, labels, overlayOutputImageFile)
     println("Label overlay image created")
 
-    val smallGroups = labels.flatten().groupBy { it.label }.filter { it.value.size < 16 }.size
-    println("$smallGroups small groups")
+    //val smallGroups = labels.flatten().groupBy { it.label }.filter { it.value.size < 16 }.size
+    //println("$smallGroups small groups")
     /*labels.flatten().groupBy { it.label }.toList().sortedBy { it.second.size }.take(15)
         .forEach { (label, pixels) ->
             println("$label - ${pixels.size} pixels")
@@ -52,10 +52,25 @@ fun main() {
         dumpLabelsToFiles(File(dumpDir), inputImage, false, labels)
     }
 
-    computeAndPrintGroupSimilarity(labels, 1444, 3358)
+    //computeAndPrintGroupSimilarity(labels, 1444, 3358)
+
+    //val targetLabel = 3502
+    val targetLabel = labels[319][552].label
+    val similarGroups = findSimilarLabels(targetLabel, labels, 0.99, true)
+    val similarGroupFile = File("output/Similar_Groups_To_$targetLabel.png")
+    val targetGroup = labels.flatten().filter { it.label == targetLabel }
+    println("Dumping similar pixels to image")
+    dumpPixelsLabelsToFile(similarGroupFile,
+        inputImage,
+        false,
+        labels,
+        similarGroups.flatMap { it.value } + targetGroup)
+
+    println("Similar Groups Written to ${similarGroupFile.toPath().toUri()}")
 
     println("Done!")
 }
+
 
 private fun computeAndPrintGroupSimilarity(labels: Array<Array<PixelLabel>>, label1: Int, label2: Int) {
     val averagePixels = getPixelLabelMapByHueAverage(labels)
@@ -179,6 +194,39 @@ private fun overlayPixelBoundsOnImage(
     ImageIO.write(outImage, "PNG", outputFile)
 }
 
+private fun dumpPixelsLabelsToFile(
+    outputFile: File,
+    source: BufferedImage,
+    useAverageColor: Boolean,
+    labels: Array<Array<PixelLabel>>,
+    pixels: List<PixelLabel>
+) {
+    val labelMap = getPixelLabelMapByHueAverage(labels)
+    val width = source.width
+    val height = source.height
+
+    val pixelMap = pixels.groupBy { it.point }
+
+    val outImage = BufferedImage(width, height, TYPE_RGB)
+
+    for (y in 0 until width) {
+        for (x in 0 until height) {
+            val pt = Point(x, y)
+            pixelMap[pt]?.let { pixels ->
+                val color = if (useAverageColor) {
+                    labelMap[pixels.first().label]?.toInt()
+                        ?: throw RuntimeException("Missing ${pixels.first().label} label")
+                } else {
+                    pixels.first().pixel.toInt()
+                }
+                outImage.setRGB(x, y, color)
+            }
+        }
+    }
+
+    ImageIO.write(outImage, "PNG", outputFile)
+}
+
 private fun dumpLabelsToFiles(
     dir: File,
     source: BufferedImage,
@@ -228,14 +276,34 @@ fun computePixelGroupEntropy(pixelGroup: List<Pixel>): Double {
     val possibilities = pixelGroup.size.toDouble()
     val maxEntropy = (1.0 / possibilities) * log2((1.0 / possibilities)) * -possibilities
 
-    println("Max: ${lightnessGroup.maxByOrNull { it.value.size }?.value?.size}")
-    println("Min: ${lightnessGroup.minByOrNull { it.value.size }?.value?.size}")
-    println("Max Entropy: $maxEntropy")
-
     return lightnessGroup
         .toList()
         .sumOf { (_, group) ->
             val p = group.size / possibilities
             p * log2(p) / maxEntropy
         } * -1
+}
+
+fun findSimilarLabels(
+    label: Int,
+    labels: Array<Array<PixelLabel>>,
+    threshold: Double = 0.95,
+    useEntropy: Boolean = true
+): Map<Int, List<PixelLabel>> {
+    val labelGroups = labels.flatten().groupBy { it.label }
+    val averagePixelMap = getPixelLabelMapByHueAverage(labels)
+        .map { (label, averagePixel) ->
+            val pixelGroup = labelGroups[label] ?: throw RuntimeException("Label $label not found?")
+            val entropy = computePixelGroupEntropy(pixelGroup.map { it.pixel })
+            val p = if (useEntropy) averagePixel.toHxHySL().append(entropy) else averagePixel.toHxHySL()
+            label to p
+        }.toMap()
+
+    val targetVector = averagePixelMap[label] ?: throw RuntimeException("Label $label not found")
+    val similarGroups = averagePixelMap.filter { (l, v) ->
+        l != label && v.cosineDistance(targetVector) >= threshold
+    }
+
+    return labelGroups.filter { (label, _) -> label in similarGroups }
+
 }
