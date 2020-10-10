@@ -6,14 +6,18 @@ import superpixel.VisionPixels
 import java.awt.color.ColorSpace.TYPE_RGB
 import java.awt.image.BufferedImage
 import java.io.File
+import java.util.*
 import javax.imageio.ImageIO
+import kotlin.collections.ArrayList
+import kotlin.collections.HashMap
+import kotlin.collections.HashSet
 import kotlin.math.log2
 import kotlin.math.round
 
 fun main() {
-    val inputImageFile = File("data/hair3.jpg")
+    val inputImageFile = File("data/hair1.jpg")
     val labelDumpDir: String? = null//"output/astro"
-    val expirementName = "avg"
+    val expirementName = "group"
     val threshold = 0.95
     val outputGroupedFile = File("output/${inputImageFile.nameWithoutExtension}-vision-$expirementName-$threshold.png")
     val overlayOutputImageFile =
@@ -55,9 +59,10 @@ fun main() {
     //computeAndPrintGroupSimilarity(labels, 1444, 3358)
 
     //val targetLabel = 3502
-    val targetLabel = labels[319][552].label
+    val targetLabel = labels[95][516].label
     val similarGroups = findSimilarLabels(targetLabel, labels, 0.99, true)
-    val similarGroupFile = File("output/Similar_Groups_To_$targetLabel.png")
+    //val similarGroups = findAllSimilarLabels(targetLabel, labels, 0.99, true)
+    val similarGroupFile = File("output/${expirementName}_Similar_Groups_To_$targetLabel.png")
     val targetGroup = labels.flatten().filter { it.label == targetLabel }
     println("Dumping similar pixels to image")
     dumpPixelsLabelsToFile(similarGroupFile,
@@ -305,5 +310,33 @@ fun findSimilarLabels(
     }
 
     return labelGroups.filter { (label, _) -> label in similarGroups }
+}
 
+fun findAllSimilarLabels(
+    label: Int,
+    labels: Array<Array<PixelLabel>>,
+    threshold: Double = 0.95,
+    useEntropy: Boolean = true
+): Map<Int, List<PixelLabel>> {
+    val foundGroups = HashMap<Int, List<PixelLabel>>()
+    val visitedLabels = HashSet<Int>()
+    val labelsToSearch = Stack<Int>()
+
+    labelsToSearch.push(label)
+
+    while (labelsToSearch.isNotEmpty()) {
+        val searchLabel = labelsToSearch.pop()
+        println("${labelsToSearch.size}")
+        visitedLabels.add(searchLabel)
+
+        findSimilarLabels(searchLabel, labels, threshold, useEntropy)
+            .forEach { (foundLabel, pixels) ->
+                if (!visitedLabels.contains(foundLabel) && !labelsToSearch.contains(foundLabel)) {
+                    foundGroups[foundLabel] = pixels
+                    labelsToSearch.push(foundLabel)
+                }
+            }
+    }
+
+    return foundGroups
 }
