@@ -3,10 +3,7 @@ package superpixel
 import net.joeaustin.data.*
 import java.awt.image.BufferedImage
 import java.lang.RuntimeException
-import kotlin.math.max
-import kotlin.math.min
-import kotlin.math.pow
-import kotlin.math.sqrt
+import kotlin.math.*
 
 typealias GroupState = Pair<VectorN, Int> //Current Average Vector and Sample Size
 
@@ -142,8 +139,9 @@ class VisionPixels(private val image: BufferedImage) {
     }
 
     fun mergeSmallGroups(dataStore: Array<Array<PixelLabel>>, minGroupSize: Int = MIN_GROUP_SIZE) {
-        val smallRegions = dataStore.flatten().groupBy { it.label }.filter { it.value.size < minGroupSize }.toMutableMap()
-        val joinMap = HashMap<Int,List<PixelLabel>> ()
+        val smallRegions =
+            dataStore.flatten().groupBy { it.label }.filter { it.value.size < minGroupSize }.toMutableMap()
+        val joinMap = HashMap<Int, List<PixelLabel>>()
         println("Small group size: ${smallRegions.size}")
 
         smallRegions.forEach { (_, pixels) ->
@@ -172,7 +170,7 @@ class VisionPixels(private val image: BufferedImage) {
                 dataStore[x][y] = dataStore[x][y].copy(label = bestLabelMatch)
             }
 
-            smallRegions.computeIfPresent(bestLabelMatch){_, currentPixels ->
+            smallRegions.computeIfPresent(bestLabelMatch) { _, currentPixels ->
                 currentPixels + pixels
             }
         }
@@ -288,6 +286,23 @@ class VisionPixels(private val image: BufferedImage) {
         val stdRgb = VectorN(sqrt(sumRgbVariance[0]), sqrt(sumRgbVariance[1]), sqrt(sumRgbVariance[2]))
 
         return averageHsl.append(stdRgb[0], stdRgb[1], stdRgb[2])
+    }
+
+
+    companion object {
+
+        fun computePixelGroupEntropy(pixelGroup: List<Pixel>): Double {
+            val lightnessGroup = pixelGroup.map { round(it.toHsl()[2] * 100) }.groupBy { it }
+            val possibilities = pixelGroup.size.toDouble()
+            val maxEntropy = (1.0 / possibilities) * log2((1.0 / possibilities)) * -possibilities
+
+            return lightnessGroup
+                .toList()
+                .sumOf { (_, group) ->
+                    val p = group.size / possibilities
+                    p * log2(p) / maxEntropy
+                } * -1
+        }
     }
 }
 
