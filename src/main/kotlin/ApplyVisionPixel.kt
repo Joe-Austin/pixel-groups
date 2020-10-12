@@ -19,7 +19,7 @@ fun main() {
     val inputImageFile = File("data/ng.png")
     val labelDumpDir: String? = null//"output/astro"
     val expirementName = "group"
-    val threshold = 0.98
+    val threshold = 0.99
     val outputGroupedFile = File("output/${inputImageFile.nameWithoutExtension}-vision-$expirementName-$threshold.png")
     val overlayOutputImageFile =
         File("output/${inputImageFile.nameWithoutExtension}-vision-$expirementName-$threshold-overlay.png")
@@ -59,6 +59,7 @@ fun main() {
 
     //computeAndPrintGroupSimilarity(labels, 1444, 3358)
 
+    /* UNCOMMENT FOR SIMILAR LABEL DUMPING
     //val targetLabel = 3502
     val targetLabel = labels[366][208].label
     val similarGroups = findSimilarLabels(targetLabel, labels, 0.99, true).toMutableMap()
@@ -75,6 +76,7 @@ fun main() {
         similarGroups.flatMap { it.value })
 
     println("Similar Groups Written to ${similarGroupFile.toPath().toUri()}")
+    */
 
     println("Done!")
 }

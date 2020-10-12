@@ -79,9 +79,9 @@ class PixelTests {
     @Test
     fun test() {
         //val one = Pixel(255, 127, 255, 0)
-        val one = Pixel.fromInt(0xFF1f273c.toInt())
-        val two = Pixel.fromInt(0xFF27292f.toInt())
-        val three = Pixel.fromInt(0xFF25324f.toInt())
+        val one = Pixel.fromInt(0xFFa78b7a.toInt())
+        val two = Pixel.fromInt(0xFF6f59ae.toInt())
+        val three = Pixel.fromInt(0xFF6f59ae.toInt())
 
         val oneHsl = one.toHxHySL()
         val twoHsl = two.toHxHySL()

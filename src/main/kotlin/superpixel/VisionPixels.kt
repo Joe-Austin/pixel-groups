@@ -1,6 +1,7 @@
 package superpixel
 
 import net.joeaustin.data.*
+import net.joeaustin.utilities.getNeighborLocations
 import java.awt.image.BufferedImage
 import java.lang.RuntimeException
 import kotlin.math.*
@@ -112,30 +113,6 @@ class VisionPixels(private val image: BufferedImage) {
         }
 
         return dataStore
-    }
-
-    private fun getNeighborLocations(
-        x: Int, y: Int, radius: Int,
-        width: Int, height: Int
-    ): List<Point> {
-        val minX = max(0, x - radius)
-        val minY = max(0, y - radius)
-
-        val maxX = min(width - 1, x + radius)
-        val maxY = min(height - 1, y + radius)
-
-        val size = ((maxX - minX + 1) * (maxY - minY + 1)) - 1
-        val neighbors = ArrayList<Point>(size)
-
-        for (i in minX..maxX) {
-            for (j in minY..maxY) {
-                if (i != x || j != y) {
-                    neighbors.add(i with j)
-                }
-            }
-        }
-
-        return neighbors
     }
 
     fun mergeSmallGroups(dataStore: Array<Array<PixelLabel>>, minGroupSize: Int = MIN_GROUP_SIZE) {
@@ -290,7 +267,6 @@ class VisionPixels(private val image: BufferedImage) {
 
 
     companion object {
-
         fun computePixelGroupEntropy(pixelGroup: List<Pixel>): Double {
             return computeHistogramPixelGroupEntropy(pixelGroup, 10)
             /*val lightnessGroup = pixelGroup.map { round(it.toHsl()[2] * 100) }.groupBy { it }
