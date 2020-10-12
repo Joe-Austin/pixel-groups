@@ -1,3 +1,4 @@
+import kotlinx.coroutines.*
 import net.joeaustin.data.PixelLabel
 import net.joeaustin.data.Point
 import net.joeaustin.data.with
@@ -9,8 +10,8 @@ import java.io.File
 import javax.imageio.ImageIO
 
 fun main() {
-    val sourceFile = File("data/coco.png")
-    val maskFile = File("data/coco_mask.png")
+    val sourceFile = File("data/hair1_tiny.png")
+    val maskFile = File("data/hair1_tiny_mask.png")
     val outputFile = File("output/${sourceFile.nameWithoutExtension}-Refined.png")
 
     val sourceImage = ImageIO.read(sourceFile)
@@ -34,7 +35,7 @@ fun createRefinedImage(
     maskImage: BufferedImage,
     inclusiveThreshold: Double = 0.5,
     similarityThreshold: Double = 0.99,
-): BufferedImage {
+): BufferedImage = runBlocking {
 
     val outputImage = BufferedImage(sourceImage.width, sourceImage.height, TYPE_INT_RGB)
     val visitedLabels = HashSet<Int>()
@@ -42,30 +43,38 @@ fun createRefinedImage(
     val maskedPixels = getMaskedPixels(maskImage)
     val labelMap = labels.flatten().groupBy { it.label }
     val maskedLabels = maskedPixels.map { (x, y) -> labels[x][y] }.distinctBy { it.label }
+    val syncRoot = Any()
 
     maskedLabels.forEachIndexed { index, pixelLabel ->
-        print("Progress: ${(index / maskedLabels.size.toDouble()) * 100}\r")
-        val (_, label, _) = pixelLabel
-        if (label !in visitedLabels) {
-            visitedLabels.add(label)
-            if (shouldLabelBeIncluded(
-                    maskedPixels,
-                    labels,
-                    labelMap,
-                    label,
-                    inclusiveThreshold,
-                    similarityThreshold
-                )
-            ) {
-                val pixels = labelMap[label] ?: throw RuntimeException("Label $label not found in label map")
-                putPixelsInImage(pixels, outputImage)
+        launch {
+            print("Progress: ${(index / maskedLabels.size.toDouble()) * 100}\r")
+            val (_, label, _) = pixelLabel
+            val shouldRun = synchronized(syncRoot) {
+                val v = label !in visitedLabels
+                visitedLabels.add(label)
+                v
             }
-
+            if (shouldRun) {
+                visitedLabels.add(label)
+                if (shouldLabelBeIncluded(
+                        maskedPixels,
+                        labels,
+                        labelMap,
+                        label,
+                        inclusiveThreshold,
+                        similarityThreshold
+                    )
+                ) {
+                    val pixels = labelMap[label] ?: throw RuntimeException("Label $label not found in label map")
+                    putPixelsInImage(pixels, outputImage)
+                }
+            }
         }
     }
 
     println()
-    return outputImage
+    println("Done with mask refinement")
+    outputImage
 }
 
 private fun getMaskedPixels(maskImage: BufferedImage): Set<Point> {
