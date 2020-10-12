@@ -16,7 +16,7 @@ import kotlin.math.log2
 import kotlin.math.round
 
 fun main() {
-    val inputImageFile = File("data/coco-sharpen.png")
+    val inputImageFile = File("data/ng.png")
     val labelDumpDir: String? = null//"output/astro"
     val expirementName = "group"
     val threshold = 0.98
@@ -60,7 +60,7 @@ fun main() {
     //computeAndPrintGroupSimilarity(labels, 1444, 3358)
 
     //val targetLabel = 3502
-    val targetLabel = labels[406][490].label
+    val targetLabel = labels[366][208].label
     val similarGroups = findSimilarLabels(targetLabel, labels, 0.99, true).toMutableMap()
     //val similarGroups = findAllSimilarLabels(targetLabel, labels, 0.99, true)
     val similarGroupFile = File("output/${expirementName}_Similar_Groups_To_$targetLabel.png")

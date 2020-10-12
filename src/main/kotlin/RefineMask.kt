@@ -2,16 +2,24 @@ import kotlinx.coroutines.*
 import net.joeaustin.data.PixelLabel
 import net.joeaustin.data.Point
 import net.joeaustin.data.with
+import net.joeaustin.utilities.computeLabelGraph
 import net.joeaustin.utilities.findSimilarLabels
 import superpixel.VisionPixels
 import java.awt.image.BufferedImage
 import java.awt.image.BufferedImage.TYPE_INT_RGB
 import java.io.File
+import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.concurrent.atomic.AtomicInteger
 import javax.imageio.ImageIO
+import kotlin.time.ExperimentalTime
+import kotlin.time.measureTime
 
+@ExperimentalTime
 fun main() {
-    val sourceFile = File("data/coco.png")
-    val maskFile = File("data/coco_mask.png")
+    //val sourceFile = File("data/coco-really_sharpen.png")
+    //val maskFile = File("data/coco_mask.png")
+    val sourceFile = File("data/ng.png")
+    val maskFile = File("data/ng_mask.png")
     val outputFile = File("output/${sourceFile.nameWithoutExtension}-Refined.png")
 
     val sourceImage = ImageIO.read(sourceFile)
@@ -23,59 +31,49 @@ fun main() {
     visionPixels.mergeSmallGroups(labels)
 
     println("Refining Image")
-    val refinedImage = createRefinedImage(labels, sourceImage, sourceMask, 0.5, 0.95)
+    val refinedImage = createRefinedImage(labels, sourceImage, sourceMask, 0.4, 0.95)
+    println()
+    println("Done with Mask Refinement")
     println("Writing Image")
     ImageIO.write(refinedImage, "PNG", outputFile)
     println(outputFile.toPath().toUri())
     println("Done!")
 }
 
+@ExperimentalTime
 fun createRefinedImage(
     labels: Array<Array<PixelLabel>>,
     sourceImage: BufferedImage,
     maskImage: BufferedImage,
     inclusiveThreshold: Double = 0.5,
     similarityThreshold: Double = 0.99,
-): BufferedImage = runBlocking {
+): BufferedImage {
 
     val outputImage = BufferedImage(sourceImage.width, sourceImage.height, TYPE_INT_RGB)
-    val visitedLabels = HashSet<Int>()
+    println("Getting label graph")
+    val labelGraph = computeLabelGraph(labels, similarityThreshold)
+
     println("Getting Masked Pixels")
     val maskedPixels = getMaskedPixels(maskImage)
     val labelMap = labels.flatten().groupBy { it.label }
     val maskedLabels = maskedPixels.map { (x, y) -> labels[x][y] }.distinctBy { it.label }
-    val syncRoot = Any()
+    val total = maskedLabels.size.toDouble()
+    val processed = AtomicInteger(0)
 
-    maskedLabels.forEachIndexed { index, pixelLabel ->
-        launch {
-            print("Progress: ${(index / maskedLabels.size.toDouble()) * 100}\r")
-            val (_, label, _) = pixelLabel
-            val shouldRun = synchronized(syncRoot) {
-                val v = label !in visitedLabels
-                visitedLabels.add(label)
-                v
-            }
-            if (shouldRun) {
-                visitedLabels.add(label)
-                if (shouldLabelBeIncluded(
-                        maskedPixels,
-                        labels,
-                        labelMap,
-                        label,
-                        inclusiveThreshold,
-                        similarityThreshold
-                    )
-                ) {
-                    val pixels = labelMap[label] ?: throw RuntimeException("Label $label not found in label map")
+    runBlocking {
+        maskedLabels.forEach { pixelLabel ->
+            launch {
+                if (shouldLabelBeIncluded(maskedPixels, labelMap, labelGraph, pixelLabel.label, inclusiveThreshold)) {
+                    val pixels = labelMap[pixelLabel.label]
+                        ?: throw RuntimeException("Label ${pixelLabel.label} not found in label map")
                     putPixelsInImage(pixels, outputImage)
                 }
+                print("Progress: ${(processed.getAndIncrement() / total) * 100}\r")
             }
         }
     }
 
-    println()
-    println("Done with mask refinement")
-    outputImage
+    return outputImage
 }
 
 private fun getMaskedPixels(maskImage: BufferedImage): Set<Point> {
@@ -113,7 +111,26 @@ private fun shouldLabelBeIncluded(
     return maskedPixelCount / labelPixels.size.toDouble() >= inclusiveThreshold
 }
 
-private fun putPixelsInImage(pixels: List<PixelLabel>, sinkImage: BufferedImage) {
+private fun shouldLabelBeIncluded(
+    maskedPixels: Set<Point>,
+    labelMap: Map<Int, List<PixelLabel>>,
+    labelGraph: Map<Int, Set<Int>>,
+    label: Int,
+    inclusiveThreshold: Double,
+): Boolean {
+    val targetGroupPixelTotal =
+        labelMap[label] ?: throw RuntimeException("Label $label not found in label map")
+    val labelPixels = targetGroupPixelTotal + (labelGraph[label]?.flatMap { similarLabel ->
+        labelMap[similarLabel] ?: throw RuntimeException("Label $similarLabel not found in label map")
+    } ?: throw RuntimeException("Label $label not found in label map"))
+
+    val maskGroups = labelPixels.groupBy { it.point in maskedPixels }
+    val maskedPixelCount = maskGroups[true]?.size ?: 0
+
+    return maskedPixelCount / labelPixels.size.toDouble() >= inclusiveThreshold
+}
+
+private fun putPixelsInImage(pixels: Collection<PixelLabel>, sinkImage: BufferedImage) {
     pixels.forEach { pixelLabel ->
         val (pixel, _, pt) = pixelLabel
         sinkImage.setRGB(pt.x, pt.y, pixel.toInt())
