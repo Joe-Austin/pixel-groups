@@ -61,7 +61,7 @@ fun getPixelLabelMapByMeanAverage(labels: Array<Array<PixelLabel>>): Map<Int, Pi
     return pixelMap
 }
 
-private fun writePixelsLabelsToFile(
+fun writeLabelsToFile(
     outputFile: File,
     source: BufferedImage,
     useAverageColor: Boolean,
@@ -76,9 +76,9 @@ private fun writePixelsLabelsToFile(
 
     val outImage = BufferedImage(width, height, ColorSpace.TYPE_RGB)
 
-    for (y in 0 until width) {
-        for (x in 0 until height) {
-            val pt = Point(x, y)
+    for (y in 0 until height) {
+        for (x in 0 until width) {
+            val pt = x with y
             pixelMap[pt]?.let { pixels ->
                 val color = if (useAverageColor) {
                     labelMap[pixels.first().label]?.toInt()
