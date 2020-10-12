@@ -10,8 +10,8 @@ import java.io.File
 import javax.imageio.ImageIO
 
 fun main() {
-    val sourceFile = File("data/hair1_tiny.png")
-    val maskFile = File("data/hair1_tiny_mask.png")
+    val sourceFile = File("data/coco.png")
+    val maskFile = File("data/coco_mask.png")
     val outputFile = File("output/${sourceFile.nameWithoutExtension}-Refined.png")
 
     val sourceImage = ImageIO.read(sourceFile)
@@ -23,9 +23,10 @@ fun main() {
     visionPixels.mergeSmallGroups(labels)
 
     println("Refining Image")
-    val refinedImage = createRefinedImage(labels, sourceImage, sourceMask)
+    val refinedImage = createRefinedImage(labels, sourceImage, sourceMask, 0.5, 0.95)
     println("Writing Image")
     ImageIO.write(refinedImage, "PNG", outputFile)
+    println(outputFile.toPath().toUri())
     println("Done!")
 }
 

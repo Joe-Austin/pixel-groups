@@ -292,7 +292,24 @@ class VisionPixels(private val image: BufferedImage) {
     companion object {
 
         fun computePixelGroupEntropy(pixelGroup: List<Pixel>): Double {
-            val lightnessGroup = pixelGroup.map { round(it.toHsl()[2] * 100) }.groupBy { it }
+            return computeHistogramPixelGroupEntropy(pixelGroup, 10)
+            /*val lightnessGroup = pixelGroup.map { round(it.toHsl()[2] * 100) }.groupBy { it }
+            val possibilities = pixelGroup.size.toDouble()
+            val maxEntropy = (1.0 / possibilities) * log2((1.0 / possibilities)) * -possibilities
+
+            return lightnessGroup
+                .toList()
+                .sumOf { (_, group) ->
+                    val p = group.size / possibilities
+                    p * log2(p) / maxEntropy
+                } * -1
+            */
+        }
+
+        fun computeHistogramPixelGroupEntropy(pixelGroup: List<Pixel>, binCount: Int = 10): Double {
+            val lightnessGroup = pixelGroup.map { round(it.toHsl()[2] * 100) }.groupBy { l ->
+                floor(l / 10) * 10
+            }
             val possibilities = pixelGroup.size.toDouble()
             val maxEntropy = (1.0 / possibilities) * log2((1.0 / possibilities)) * -possibilities
 
