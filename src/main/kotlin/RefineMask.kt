@@ -27,11 +27,11 @@ fun main() {
 
     val visionPixels = VisionPixels(sourceImage)
     println("Getting labels")
-    val labels = visionPixels.labelPixels(0.98)
+    val labels = visionPixels.labelPixels(0.99)
     visionPixels.mergeSmallGroups(labels)
 
     println("Refining Image")
-    val refinedImage = createRefinedImage(labels, sourceImage, sourceMask, 0.4, 0.95)
+    val refinedImage = createRefinedImage(labels, sourceImage, sourceMask, 0.25, 0.99)
     println()
     println("Done with Mask Refinement")
     println("Writing Image")

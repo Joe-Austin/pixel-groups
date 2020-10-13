@@ -9,8 +9,8 @@ import kotlin.collections.ArrayList
 private const val BLACK = 0xFF000000.toInt()
 
 fun main() {
-    val sourceImageFile = File("data/ng.png")
-    val contentImageFile = File("output/ng-Refined_Manual.png")
+    val sourceImageFile = File("data/coco-really_sharpen.png")
+    val contentImageFile = File("output/coco-really_sharpen-Refined.png")
     val outputImageFile = File("output/${contentImageFile.nameWithoutExtension}-Filled.png")
     val similarity = 0.99
 

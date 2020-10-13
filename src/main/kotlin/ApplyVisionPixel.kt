@@ -20,6 +20,7 @@ fun main() {
     val labelDumpDir: String? = null//"output/astro"
     val expirementName = "group"
     val threshold = 0.99
+    val collectSimilarGroupPosition : Point? = 282 with 411
     val outputGroupedFile = File("output/${inputImageFile.nameWithoutExtension}-vision-$expirementName-$threshold.png")
     val overlayOutputImageFile =
         File("output/${inputImageFile.nameWithoutExtension}-vision-$expirementName-$threshold-overlay.png")
@@ -59,24 +60,25 @@ fun main() {
 
     //computeAndPrintGroupSimilarity(labels, 1444, 3358)
 
-    /* UNCOMMENT FOR SIMILAR LABEL DUMPING
     //val targetLabel = 3502
-    val targetLabel = labels[366][208].label
-    val similarGroups = findSimilarLabels(targetLabel, labels, 0.99, true).toMutableMap()
-    //val similarGroups = findAllSimilarLabels(targetLabel, labels, 0.99, true)
-    val similarGroupFile = File("output/${expirementName}_Similar_Groups_To_$targetLabel.png")
-    val targetGroup = labels.flatten().filter { it.label == targetLabel }
-    println("Target Group has ${targetGroup.size} pixels")
-    similarGroups[targetLabel] = targetGroup
-    println("Dumping similar pixels to image")
-    writeLabelsToFile(similarGroupFile,
-        inputImage,
-        false,
-        labels,
-        similarGroups.flatMap { it.value })
+    collectSimilarGroupPosition?.let { (px, py) ->
+        val targetLabel = labels[px][py].label
+        val similarGroups = findSimilarLabels(targetLabel, labels, 0.99, true).toMutableMap()
+        //val similarGroups = findAllSimilarLabels(targetLabel, labels, 0.99, true)
+        val similarGroupFile = File("output/${expirementName}_Similar_Groups_To_$targetLabel.png")
+        val targetGroup = labels.flatten().filter { it.label == targetLabel }
+        println("Target Group has ${targetGroup.size} pixels")
+        similarGroups[targetLabel] = targetGroup
+        println("Dumping similar pixels to image")
+        writeLabelsToFile(similarGroupFile,
+            inputImage,
+            false,
+            labels,
+            similarGroups.flatMap { it.value })
 
-    println("Similar Groups Written to ${similarGroupFile.toPath().toUri()}")
-    */
+        println("Similar Groups Written to ${similarGroupFile.toPath().toUri()}")
+    }
+
 
     println("Done!")
 }
