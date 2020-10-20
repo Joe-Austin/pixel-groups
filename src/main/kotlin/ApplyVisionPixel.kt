@@ -16,11 +16,11 @@ import kotlin.math.log2
 import kotlin.math.round
 
 fun main() {
-    val inputImageFile = File("data/ng.png")
+    val inputImageFile = File("data/ng1.png")
     val labelDumpDir: String? = null//"output/astro"
     val expirementName = "group"
     val threshold = 0.99
-    val collectSimilarGroupPosition : Point? = 282 with 411
+    val collectSimilarGroupPosition : Point? = 372  with 500
     val outputGroupedFile = File("output/${inputImageFile.nameWithoutExtension}-vision-$expirementName-$threshold.png")
     val overlayOutputImageFile =
         File("output/${inputImageFile.nameWithoutExtension}-vision-$expirementName-$threshold-overlay.png")

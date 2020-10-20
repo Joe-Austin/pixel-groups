@@ -18,8 +18,8 @@ import kotlin.time.measureTime
 fun main() {
     //val sourceFile = File("data/coco-really_sharpen.png")
     //val maskFile = File("data/coco_mask.png")
-    val sourceFile = File("data/ng.png")
-    val maskFile = File("data/ng_mask.png")
+    val sourceFile = File("data/ng1.png")
+    val maskFile = File("data/ng1_mask.png")
     val outputFile = File("output/${sourceFile.nameWithoutExtension}-Refined.png")
 
     val sourceImage = ImageIO.read(sourceFile)
