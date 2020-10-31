@@ -81,6 +81,9 @@ fun getNeighborLocations(
     val maxY = min(height - 1, y + radius)
 
     val size = ((maxX - minX + 1) * (maxY - minY + 1)) - 1
+    if(size < 0) {
+        println("Uh-oh")
+    }
     val neighbors = ArrayList<Point>(size)
 
     for (i in minX..maxX) {

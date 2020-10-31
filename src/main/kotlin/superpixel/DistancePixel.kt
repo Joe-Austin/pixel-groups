@@ -1,18 +1,17 @@
 package superpixel
 
 import net.joeaustin.data.*
-import net.joeaustin.utilities.getHueAverage
 import net.joeaustin.utilities.getNeighborLocations
 import java.awt.image.BufferedImage
-import kotlin.RuntimeException
+import java.lang.RuntimeException
 import kotlin.math.*
 
-typealias GroupState = Pair<VectorN, Int> //Current Average Vector and Sample Size
+//typealias GroupState = Pair<VectorN, Int> //Current Average Vector and Sample Size
 
 private const val SIGMA = 1.0
 private const val MIN_GROUP_SIZE = 5
 
-class VisionPixels(private val image: BufferedImage) {
+class DistancePixel(private val image: BufferedImage) {
     private val width = image.width
     private val height = image.height
 
@@ -36,7 +35,7 @@ class VisionPixels(private val image: BufferedImage) {
 
                 mappedNeighbors.forEach { (_, label) ->
                     groupStateMap[label]?.let { (groupHsl, _) ->
-                        val difference = currentPixelHsl.cosineDistance(groupHsl)
+                        val difference = currentPixelHsl.distanceTo(groupHsl)
                         if (difference > bestDifference) {
                             bestDifference = difference
                             closestLabel = label
@@ -85,7 +84,7 @@ class VisionPixels(private val image: BufferedImage) {
 
                 mappedNeighbors.forEach { (_, label) ->
                     groupStateMap[label]?.let { (groupHsl, _) ->
-                        val difference = currentPixelHsl.cosineDistance(groupHsl)
+                        val difference = currentPixelHsl.distanceTo(groupHsl)
                         if (difference > bestDifference) {
                             bestDifference = difference
                             closestLabel = label
@@ -93,7 +92,8 @@ class VisionPixels(private val image: BufferedImage) {
                     }
                 }
 
-                val actualLabel = if (bestDifference >= threshold) {
+                //println("Best Difference: $bestDifference")
+                val actualLabel = if (bestDifference <= threshold) {
                     closestLabel
                 } else {
                     ++currentLabel
@@ -134,8 +134,8 @@ class VisionPixels(private val image: BufferedImage) {
                     .map { (x, y) -> dataStore[x][y] }
                     .filter { it.label != currentLabel }
                     .forEach { neighborPixel ->
-                        val currentDifference = currentPixelHsl.cosineDistance(neighborPixel.pixel.toHxHySL())
-                        if (currentDifference > bestMatchDifference) {
+                        val currentDifference = currentPixelHsl.distanceTo(neighborPixel.pixel.toHxHySL())
+                        if (currentDifference < bestMatchDifference) {
                             bestLabelMatch = neighborPixel.label
                             bestMatchDifference = currentDifference
                         }
@@ -157,123 +157,6 @@ class VisionPixels(private val image: BufferedImage) {
         println("Post Merge Small group size: ${postMergeSmallRegions.size}")
     }
 
-    fun mergeNeighborGroups(dataStore: Array<Array<PixelLabel>>, threshold: Double) {
-        val labelMap = dataStore.flatten().groupBy { it.label }
-        val averageVectorMap = HashMap<Int, List<PixelLabel>>()
-        labelMap.forEach { (oldLabel, pixels) ->
-            val (x, y) = pixels.first().point
-            //Due to a merge, this may have changed from when originally grouped.
-            val actualLabel = dataStore[x][y].label
-            val currentPixels = averageVectorMap.getOrPut(actualLabel) {
-                labelMap[actualLabel] ?: throw RuntimeException("No label found")
-            }
-
-            val currentGroupVector = getHueAverage(currentPixels)
-
-            var bestNeighborMatch: List<PixelLabel>? = null
-            var bestSimilarity = Double.MIN_VALUE
-
-            findPixelNeighborLabels(actualLabel, pixels, dataStore).forEach { neighborLabel ->
-                val neighborPixels = averageVectorMap.getOrPut(neighborLabel) {
-                    labelMap[neighborLabel] ?: throw RuntimeException("No label found")
-                }
-                val neighborVector = getHueAverage(neighborPixels)
-
-                val similarity = neighborVector.cosineDistance(currentGroupVector)
-                if (similarity >= threshold && similarity > bestSimilarity) {
-                    bestNeighborMatch = neighborPixels
-                    bestSimilarity = similarity
-                }
-            }
-
-            bestNeighborMatch?.let { match ->
-                averageVectorMap[actualLabel] = currentPixels + match
-                //Perform the merge in the labels
-                match.forEach { matchedPixelLabel ->
-                    val (mx, my) = matchedPixelLabel.point
-                    dataStore[mx][my] = dataStore[mx][my].copy(label = actualLabel)
-                }
-            }
-        }
-    }
-
-    fun removeLines(labels: Array<Array<PixelLabel>>) {
-        val width = labels.size
-        val height = labels[0].size
-
-        var line = findFirstLine(labels)
-
-        while (line != null) {
-            line.second.forEach { (pixel, pixelLabel, pixelPoint) ->
-                val pixelVector = pixel.toHxHySL()
-                //Get Best Neighbor
-                getNeighborLocations(pixelPoint.x, pixelPoint.y, 1, width, height).maxByOrNull { (nx, ny) ->
-                    val (nPixel, nLabel, _) = labels[nx][ny]
-                    val nPixelVector = nPixel.toHxHySL()
-                    when (nLabel) {
-                        pixelLabel -> Double.MIN_VALUE
-                        else -> nPixelVector.cosineDistance(pixelVector)
-                    }
-                }?.let { (nx, ny) ->
-                    val newLabel = labels[nx][ny].label
-                    labels[pixelPoint.x][pixelPoint.y] = PixelLabel(pixel, newLabel, pixelPoint)
-                }
-            }
-
-            line = findFirstLine(labels)
-        }
-    }
-
-    fun findFirstLine(labels: Array<Array<PixelLabel>>): Pair<Int, List<PixelLabel>>? {
-        val labelMap = labels.flatten().groupBy { it.label }
-        val width = labels.size
-        val height = labels[0].size
-
-        return labelMap.toList().firstOrNull { (_, pixels) ->
-            pixels.all { pixel ->
-                val (_, label, pt) = pixel
-                getNeighborLocations(pt.x, pt.y, 1, width, height).any { (nx, ny) ->
-                    val nLabel = labels[nx][ny].label
-                    nLabel != label
-                }
-            }
-        }
-    }
-
-    fun findLines(labels: Array<Array<PixelLabel>>): Map<Int, List<PixelLabel>> {
-        val labelMap = labels.flatten().groupBy { it.label }
-        val width = labels.size
-        val height = labels[0].size
-
-        return labelMap.filter { (_, pixels) ->
-            pixels.all { pixel ->
-                val (_, label, pt) = pixel
-                getNeighborLocations(pt.x, pt.y, 1, width, height).any { (nx, ny) ->
-                    val nLabel = labels[nx][ny].label
-                    nLabel != label
-                }
-            }
-        }
-    }
-
-    private fun findPixelNeighborLabels(
-        label: Int,
-        pixels: List<PixelLabel>,
-        labels: Array<Array<PixelLabel>>,
-    ): Set<Int> {
-        val set = HashSet<Int>()
-        pixels.forEach { pixelLabel ->
-            val (x, y) = pixelLabel.point
-            getNeighborLocations(x, y, 1, image.width, image.height).forEach { (nx, ny) ->
-                val nLabel = labels[nx][ny].label
-                if (nLabel != label) {
-                    set.add(nLabel)
-                }
-            }
-        }
-
-        return set
-    }
 
     fun labelImageWithTextureCondensing(
         textureThreshold: Double = 0.9,
@@ -306,7 +189,7 @@ class VisionPixels(private val image: BufferedImage) {
                             }
 
                             val shouldMerge =
-                                currentTextureVector.cosineDistance(neighborTextureVector) >= textureThreshold
+                                currentTextureVector.distanceTo(neighborTextureVector) >= textureThreshold
                             if (shouldMerge) {
                                 //Set neighbor region's labels to that of the current label
                                 neighborRegion.forEach { (_, _, point) ->
@@ -415,10 +298,4 @@ class VisionPixels(private val image: BufferedImage) {
                 } * -1
         }
     }
-}
-
-
-private fun <T> List<T>.debug(run: List<T>.() -> Unit): List<T> {
-    run(this)
-    return this
 }

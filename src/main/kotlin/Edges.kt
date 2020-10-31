@@ -14,12 +14,13 @@ import kotlin.math.roundToInt
 import kotlin.math.sqrt
 
 fun main() {
-    val inputFile = File("data/ng1.png")
+    val inputFile = File("data/bs.jpg")
+    val t = 0.5
 
     val image = ImageIO.read(inputFile)
     val blurredFile = File("output/${inputFile.nameWithoutExtension}-blurred.png")
-    val blurredImage = blurImage(image)
-    //val blurredImage = applyGaussianBlur(image)
+    //val blurredImage = blurImage(image)
+    val blurredImage = applyGaussianBlur(image)
     ImageIO.write(blurredImage, "PNG", blurredFile)
     println(blurredFile.toPath().toUri())
 
@@ -28,8 +29,8 @@ fun main() {
     val colorOutput = File("output/${inputFile.nameWithoutExtension}-colorEdge.png")
 
 
-    //performCannyEdgeDetection(inputFile, cannyOutput)
-    performColorEdgeDetection(blurredFile, colorOutput, 1.5)
+    performCannyEdgeDetection(inputFile, cannyOutput)
+    performColorEdgeDetection(inputFile, colorOutput, t)
 }
 
 fun performCannyEdgeDetection(inputFile: File, outputFile: File) {
@@ -121,14 +122,14 @@ fun performColorEdgeDetection(inputFile: File, outputFile: File, threshold: Doub
             val center = Pixel.fromInt(inputImage.getRGB(x, y)).toHxHySL()
             val region = getImageRegion(inputImage, x with y).map {
                 it.map { p ->
-                    //p.toHxHySL().cosineDistance(center)
-                    p.toHxHySL().distanceTo(center)
+                    p.toHxHySL().cosineDistance(center)
                 }.toTypedArray()
             }.toTypedArray()
 
             val (mag, _) = applyKernels(region.asMatrix(), xKernel, yKernel)
 
             if (mag >= threshold) {
+            //if (mag >= threshold) {
                 outputImage.setRGB(x, y, white)
             }
         }

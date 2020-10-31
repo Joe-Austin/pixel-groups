@@ -194,8 +194,8 @@ class PixelTests {
         )*/
 
         val colorValues = arrayOf(
-            arrayOf(0xFF0000FF, 0xFF0000FF, 0xFFFF0000),
-            arrayOf(0xFF0000FF, 0xFF0000FF, 0xFFFF0000),
+            arrayOf(0xFFFF0000, 0xFFFF0000, 0xFFFF0000),
+            arrayOf(0xFF0000FF, 0xFFFF0000, 0xFFFF0000),
             arrayOf(0xFF0000FF, 0xFF0000FF, 0xFFFF0000)
         )
 
@@ -217,7 +217,7 @@ class PixelTests {
         val yKernel = arrayOf(
             arrayOf(1.0, 2.0, 1.0),
             arrayOf(0.0, 0.0, 0.0),
-            arrayOf(-1.0, 2.0, -1.0),
+            arrayOf(-1.0, -2.0, -1.0),
         )
 
         diffGroup.forEach { println(it) }

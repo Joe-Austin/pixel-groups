@@ -1,7 +1,9 @@
+import jdk.jfr.Threshold
 import net.joeaustin.data.*
 import net.joeaustin.utilities.*
 import org.json.JSONArray
 import org.json.JSONObject
+import superpixel.DistancePixel
 import superpixel.VisionPixels
 import superpixel.VisionPixels.Companion.computePixelGroupEntropy
 import java.awt.color.ColorSpace.TYPE_RGB
@@ -16,32 +18,76 @@ import kotlin.math.log2
 import kotlin.math.round
 
 fun main() {
-    val inputImageFile = File("data/ng1.png")
+    val inputImageFile = File("data/blurred.jpg")
     val labelDumpDir: String? = null//"output/astro"
     val expirementName = "group"
-    val threshold = 0.99
-    val collectSimilarGroupPosition : Point? = 372  with 500
+    val threshold = 0.98
+
+
+    /*
+    //Largest pixel group
+
+    val largestOutput = File("output/${inputImageFile.nameWithoutExtension}-largestGroup.png")
+    writeOutLargestImageRegion(inputImageFile, largestOutput, threshold, false, false)
+    println(largestOutput.toPath().toUri())
+
+    return
+    */
+
+
+    //val distanceThreshold = 0.25
+    val collectSimilarGroupPosition: Point? = 208 with 735 //null// 372  with 500
     val outputGroupedFile = File("output/${inputImageFile.nameWithoutExtension}-vision-$expirementName-$threshold.png")
+    val outputDistanceGroupedFile =
+        File("output/${inputImageFile.nameWithoutExtension}-distance_vision-$expirementName-$threshold.png")
     val overlayOutputImageFile =
         File("output/${inputImageFile.nameWithoutExtension}-vision-$expirementName-$threshold-overlay.png")
+    val overlayDistanceOutputImageFile =
+        File("output/${inputImageFile.nameWithoutExtension}-distance_vision-$expirementName-$threshold-overlay.png")
     val inputImage = ImageIO.read(inputImageFile)
 
     val visionPixels = VisionPixels(inputImage)
+    //val distancePixels = DistancePixel(inputImage)
     //val labels = visionPixels.labelPixelsWithAverage(threshold)
     val labels = visionPixels.labelPixels(threshold)
+    //val distanceLabels = distancePixels.labelPixels(distanceThreshold)
     //val labels = visionPixels.labelImageWithTextureCondensing(threshold, threshold)
-    visionPixels.mergeSmallGroups(labels, 16)
+    println("Raw Lines")
+    getLines(labels)
+
+    //println("Removing Lines")
+    //visionPixels.removeLines(labels)
+    println("Lines Removed")
+    getLines(labels)
+
+    visionPixels.mergeNeighborGroups(labels, 0.95)
+    println("Neighbors Merged")
+    getLines(labels)
+    visionPixels.mergeSmallGroups(labels, 32)
+    println("Small Groups")
+    getLines(labels)
+
+
+    //distancePixels.mergeSmallGroups(distanceLabels, 16)
 
 
     println("Creating grouped image")
     createSuperPixelImage(labels, outputGroupedFile)
+    println(outputGroupedFile.toPath().toUri())
+    //createSuperPixelImage(distanceLabels, outputDistanceGroupedFile)
+    println(outputDistanceGroupedFile.toPath().toUri())
     println("Grouped image created")
 
     val uniqueLabels = labels.flatten().distinctBy { it.label }.size
+    //val uniqueDistanceLabels = distanceLabels.flatten().distinctBy { it.label }.size
     println("Label Count: $uniqueLabels")
+    //println("Distance Label Count: $uniqueDistanceLabels")
 
     println("Creating label overlay image")
     overlayPixelBoundsOnImage(inputImage, labels, overlayOutputImageFile)
+    println(overlayOutputImageFile.toPath().toUri())
+    //overlayPixelBoundsOnImage(inputImage, distanceLabels, overlayDistanceOutputImageFile)
+    println(overlayDistanceOutputImageFile.toPath().toUri())
     println("Label overlay image created")
 
     //val smallGroups = labels.flatten().groupBy { it.label }.filter { it.value.size < 16 }.size
@@ -62,6 +108,7 @@ fun main() {
 
     //val targetLabel = 3502
     collectSimilarGroupPosition?.let { (px, py) ->
+        val labelGroups = labels.flatten().groupBy { it.label }
         val targetLabel = labels[px][py].label
         val similarGroups = findSimilarLabels(targetLabel, labels, 0.99, true).toMutableMap()
         //val similarGroups = findAllSimilarLabels(targetLabel, labels, 0.99, true)
@@ -76,11 +123,77 @@ fun main() {
             labels,
             similarGroups.flatMap { it.value })
 
+        val labelFile = File("output/${expirementName}_$targetLabel.png")
+
+        writeLabelsToFile(labelFile, inputImage, false, labels, labelGroups[targetLabel] ?: error(""))
         println("Similar Groups Written to ${similarGroupFile.toPath().toUri()}")
+        println("Single Group Written to ${labelFile.toPath().toUri()}")
     }
 
 
     println("Done!")
+}
+
+private fun getLines(labels: Array<Array<PixelLabel>>) {
+    val labelMap = labels.flatten().groupBy { it.label }
+    val width = labels.size
+    val height = labels[0].size
+
+    val lines = labelMap.filter { (_, pixels) ->
+        pixels.all { pixel ->
+            val (_, label, pt) = pixel
+            getNeighborLocations(pt.x, pt.y, 1, width, height).any { (nx, ny) ->
+                val nLabel = labels[nx][ny].label
+                nLabel != label
+            }
+        }
+    }
+
+    val minSize = lines.minByOrNull { (_, pixels) -> pixels.size }?.value?.size
+    val maxSize = lines.maxByOrNull { (_, pixels) -> pixels.size }?.value?.size
+
+    println("Found ${lines.size} lines (Range: $minSize - $maxSize)")
+}
+
+private fun writeOutLargestImageRegion(
+    input: File,
+    outputFile: File,
+    threshold: Double = 0.95,
+    useAverageColor: Boolean = true,
+    includeSimilarRegions: Boolean = true,
+    minGroupSize: Int = 16
+) {
+    val inputImage = ImageIO.read(input)
+    val visionPixels = VisionPixels(inputImage)
+
+    println("Getting labels")
+    val labels = visionPixels.labelPixels(threshold)
+    visionPixels.mergeSmallGroups(labels, minGroupSize)
+
+    println("Finding largest group")
+    val labelGroups = labels.flatten().groupBy { it.label }
+    val (largestLabel, pixels) = labelGroups.maxByOrNull { (_, pixels) -> pixels.size }
+        ?: throw RuntimeException("No groups?")
+    val largestPixelsPoints = pixels.map { it.point }.toHashSet()
+
+    println("Finding similar groups")
+    val similarLabels = if (includeSimilarRegions) {
+        findSimilarLabels(largestLabel, labels, threshold, true)
+            .filter { (_, similarPixels) ->
+                similarPixels.any { sp ->
+                    val (nx, ny) = sp.point
+                    val neighborPoints = getNeighborLocations(nx, ny, 1, inputImage.width, inputImage.height)
+                    neighborPoints.any { np -> np in largestPixelsPoints }
+                }
+            }
+    } else {
+        emptyMap()
+    }
+
+    println("Writing label $largestLabel to file")
+    writeLabelsToFile(outputFile, inputImage, useAverageColor, labels, pixels + similarLabels.values.flatten())
+
+
 }
 
 

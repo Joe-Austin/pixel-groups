@@ -45,6 +45,19 @@ fun getPixelLabelMapByHueAverage(labels: Array<Array<PixelLabel>>): Map<Int, Pix
     return pixelMap
 }
 
+fun getHueAverage(pixels: List<PixelLabel>): VectorN {
+    var averageHsl = VectorN(0.0, 0.0, 0.0, 0.0)
+
+    pixels.forEach { pixelLabel ->
+        val pixelHsl = pixelLabel.pixel.toHxHySL()
+        averageHsl += pixelHsl
+    }
+
+    averageHsl /= pixels.size.toDouble()
+
+    return averageHsl
+}
+
 fun getPixelLabelMapByMeanAverage(labels: Array<Array<PixelLabel>>): Map<Int, Pixel> {
     val pixelMap = HashMap<Int, Pixel>() //Key = Label; Value = Average Pixel Value
 
