@@ -127,8 +127,8 @@ class PixelTests {
     @Test
     fun testHslAndRgb() {
         //val one = Pixel(255, 127, 255, 0)
-        val one = Pixel.fromInt(0xFF9a9397.toInt())
-        val two = Pixel.fromInt(0xFFc9c2c1.toInt())
+        val one = Pixel.fromInt(0xFFbb3513.toInt())
+        val two = Pixel.fromInt(0xFFc36b34.toInt())
         val three = Pixel.fromInt(0xFFa8a5a4.toInt())
 
         val colorOne = one.toRgbVector() / 255.0

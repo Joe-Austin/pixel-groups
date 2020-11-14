@@ -14,7 +14,7 @@ import kotlin.math.roundToInt
 import kotlin.math.sqrt
 
 fun main() {
-    val inputFile = File("data/bs.jpg")
+    val inputFile = File("data/goat.jpg")
     val t = 0.5
 
     val image = ImageIO.read(inputFile)
@@ -41,7 +41,7 @@ fun performCannyEdgeDetection(inputFile: File, outputFile: File) {
 
     cvCvtColor(iplImg, grayImage, CV_BGR2GRAY)
     cvSmooth(grayImage, grayImage, CV_GAUSSIAN, 7, 7, 0.0, 0.0)
-    cvCanny(grayImage, cannyImage, 10.0, 300.0, 5);
+    cvCanny(grayImage, cannyImage, 299.9, 300.0, 5);
 
     val outMat = cannyImage.toMat()
 

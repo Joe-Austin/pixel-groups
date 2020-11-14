@@ -1,6 +1,9 @@
 package net.joeaustin.utilities
 
 import net.joeaustin.data.Point
+import net.joeaustin.data.with
+import kotlin.math.max
+import kotlin.math.min
 
 fun List<Point>.bounds(): List<Point> {
     if (this.isEmpty()) return emptyList()
@@ -39,4 +42,38 @@ fun List<Point>.bounds(): List<Point> {
 
         isHorizontalExtent || isVerticalExtent
     }.distinct()
+}
+
+fun List<Point>.centroid(): Point {
+    val size = if (this.isNotEmpty()) this.size else 1
+
+    /*var x = 0
+    var y = 0
+
+    this.forEach { (px, py) ->
+        x += px
+        y += py
+    }
+
+    return (x / size) with (y / size)
+     */
+
+    var minX = Int.MAX_VALUE
+    var minY = Int.MAX_VALUE
+    var maxX = Int.MIN_VALUE
+    var maxY = Int.MIN_VALUE
+
+    this.forEach { (px, py) ->
+        minX = min(minX, px)
+        minY = min(minY, py)
+
+        maxX = max(maxX, px)
+        maxY = max(maxY, py)
+    }
+
+    val xOffset = (maxX - minX) / 2
+    val yOffset = (maxY - minY) / 2
+
+    return (minX + xOffset) with (minY + yOffset)
+
 }

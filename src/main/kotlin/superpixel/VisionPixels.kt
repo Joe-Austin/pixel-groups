@@ -1,8 +1,7 @@
 package superpixel
 
 import net.joeaustin.data.*
-import net.joeaustin.utilities.getHueAverage
-import net.joeaustin.utilities.getNeighborLocations
+import net.joeaustin.utilities.*
 import java.awt.image.BufferedImage
 import kotlin.RuntimeException
 import kotlin.math.*
@@ -157,15 +156,99 @@ class VisionPixels(private val image: BufferedImage) {
         println("Post Merge Small group size: ${postMergeSmallRegions.size}")
     }
 
+    fun mergeNeighborGroups9(dataStore: Array<Array<PixelLabel>>, threshold: Double) {
+        val originalDataStore = dataStore.copyOf()
+        val labelMap = dataStore.flatten().groupBy { it.label }
+        val vectorMap = labelMap.mapValues { getHueAverage(it.value) }
+        val visitedLabels = HashSet<Int>()
+
+        labelMap.forEach { (originalLabel, pixels) ->
+            if (originalLabel !in visitedLabels) {
+                val (x, y) = pixels.first().point
+                val actualLabel = dataStore[x][y].label
+                val groupsToVisit = HashSet<Int>()
+
+                findSimilarPixelNeighborLabels(
+                    originalLabel,
+                    labelMap,
+                    vectorMap,
+                    originalDataStore,
+                    threshold
+                ).forEach { neighborLabel ->
+                    if (neighborLabel !in visitedLabels) {
+                        groupsToVisit.add(neighborLabel)
+                    }
+                }
+
+                while (groupsToVisit.isNotEmpty()) {
+                    val targetLabel = groupsToVisit.first()
+                    labelMap[targetLabel]?.forEach { (_, _, pt) ->
+                        dataStore[pt.x][pt.y] = dataStore[pt.x][pt.y].copy(label = actualLabel)
+                    }
+
+                    visitedLabels.add(targetLabel)
+                    groupsToVisit.remove(targetLabel)
+
+                    findSimilarPixelNeighborLabels(
+                        targetLabel,
+                        labelMap,
+                        vectorMap,
+                        originalDataStore,
+                        threshold
+                    ).forEach { neighborLabel ->
+                        if (neighborLabel !in visitedLabels) {
+                            groupsToVisit.add(neighborLabel)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    fun mergeNeighborGroups2(dataStore: Array<Array<PixelLabel>>, threshold: Double) {
+        //Pixels mapped by their label
+        val labelMap = dataStore.flatten().groupBy { it.label }
+        val mergedSet = HashSet<Int>(labelMap.keys.size)
+
+        //Build similarity graph
+        val neighborMap = computeLabelGraph(dataStore, threshold, true)
+
+        //Merge similar adjacent neighbor groups
+        neighborMap.forEach { (label, similarLabels) ->
+            val labelGroup = labelMap[label] ?: error("Label not found")
+            val (fpX, fpY) = labelGroup.first().point
+
+            val actualLabel = similarLabels.firstOrNull { it in mergedSet } ?: dataStore[fpX][fpY].label
+
+
+            similarLabels.forEach { similarLabel ->
+                val similarLabelGroup = labelMap[similarLabel] ?: error("Label not found")
+                val (sX, sY) = similarLabelGroup.first().point
+                val similarLabelActualLabel = dataStore[sX][sY].label
+
+                if (actualLabel != similarLabelActualLabel &&
+                    arePixelGroupsNeighbors(labelGroup, similarLabelGroup)
+                ) {
+                    //println("Merging Similar Groups")
+                    //Merge the groups
+                    similarLabelGroup.forEach { (_, _, mergePoint) ->
+                        val newPixelLabel = dataStore[mergePoint.x][mergePoint.y].copy(label = actualLabel)
+                        dataStore[mergePoint.x][mergePoint.y] = newPixelLabel
+                    }
+                }
+            }
+        }
+    }
+
     fun mergeNeighborGroups(dataStore: Array<Array<PixelLabel>>, threshold: Double) {
         val labelMap = dataStore.flatten().groupBy { it.label }
         val averageVectorMap = HashMap<Int, List<PixelLabel>>()
-        labelMap.forEach { (oldLabel, pixels) ->
+        labelMap.forEach { (_, pixels) ->
             val (x, y) = pixels.first().point
             //Due to a merge, this may have changed from when originally grouped.
             val actualLabel = dataStore[x][y].label
             val currentPixels = averageVectorMap.getOrPut(actualLabel) {
-                labelMap[actualLabel] ?: throw RuntimeException("No label found")
+                labelMap[actualLabel] ?: error("No label found")
             }
 
             val currentGroupVector = getHueAverage(currentPixels)
@@ -268,6 +351,32 @@ class VisionPixels(private val image: BufferedImage) {
                 val nLabel = labels[nx][ny].label
                 if (nLabel != label) {
                     set.add(nLabel)
+                }
+            }
+        }
+
+        return set
+    }
+
+    private fun findSimilarPixelNeighborLabels(
+        label: Int,
+        labelMap: Map<Int, List<PixelLabel>>,
+        vectorMap : Map<Int, VectorN>,
+        labels: Array<Array<PixelLabel>>,
+        threshold: Double
+    ): Set<Int> {
+        val set = HashSet<Int>()
+        val pixels = labelMap[label] ?: error("Label not found")
+        val pixelsVector = vectorMap[label] ?: error("Vector not found")
+        pixels.forEach { pixelLabel ->
+            val (x, y) = pixelLabel.point
+            getNeighborLocations(x, y, 1, image.width, image.height).forEach { (nx, ny) ->
+                val nLabel = labels[nx][ny].label
+                if (nLabel != label) {
+                    val neighborVector = vectorMap[nLabel] ?: error("Neighbor vector not found")
+                    if (neighborVector.cosineDistance(pixelsVector) >= threshold) {
+                        set.add(nLabel)
+                    }
                 }
             }
         }

@@ -162,27 +162,15 @@ fun overlayPixelBoundsOnImage(
     val width = source.width
     val height = source.height
 
-    val labelToPointsMap = HashMap<Int, ArrayList<Point>>() //Key = Label; Value = Points in label
-
-    for (x in 0 until width) {
-        for (y in 0 until height) {
-            val (_, label) = labels[x][y]
-            val targetList = labelToPointsMap.getOrDefault(label, ArrayList())
-            targetList.add(x with y)
-            labelToPointsMap[label] = targetList
-        }
-    }
-
-    val edges = labelToPointsMap.map { (_, points) ->
-        points.bounds()
-    }.flatten().toSet()
-
     val outImage = BufferedImage(width, height, ColorSpace.TYPE_RGB)
 
     for (x in 0 until width) {
         for (y in 0 until height) {
-            val pt = x with y
-            val pixelValue = if (pt in edges) {
+            val currentLabel = labels[x][y].label
+            val isEdge = getNeighborLocations(x, y, 1, width, height).any { (nx, ny) ->
+                labels[nx][ny].label != currentLabel
+            }
+            val pixelValue = if (isEdge) {
                 penInt
             } else {
                 source.getRGB(x, y)
@@ -193,4 +181,37 @@ fun overlayPixelBoundsOnImage(
     }
 
     ImageIO.write(outImage, "PNG", outputFile)
+}
+
+fun overlayCentroids(
+    source: BufferedImage,
+    labels: Array<Array<PixelLabel>>,
+    centroidColor: Pixel = Pixel.fromInt(0xFF00FF00.toInt())
+): BufferedImage {
+    val penInt = centroidColor.toInt()
+    val width = source.width
+    val height = source.height
+
+    val outImage = BufferedImage(width, height, ColorSpace.TYPE_RGB)
+
+    val visitedLabels = HashSet<Int>()
+    val labelMap = labels.flatten().groupBy { it.label }
+
+    for (x in 0 until width) {
+        for (y in 0 until height) {
+            val label = labels[x][y].label
+
+            if (label !in visitedLabels) {
+                val (cx, cy) = getLabelEdges(label, labels, labelMap).centroid()
+                visitedLabels.add(label)
+                outImage.setRGB(cx, cy, penInt)
+            }
+
+            if (outImage.getRGB(x, y) != penInt) {
+                outImage.setRGB(x, y, source.getRGB(x, y))
+            }
+        }
+    }
+
+    return outImage
 }

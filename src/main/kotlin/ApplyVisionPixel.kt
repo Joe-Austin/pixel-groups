@@ -18,10 +18,10 @@ import kotlin.math.log2
 import kotlin.math.round
 
 fun main() {
-    val inputImageFile = File("data/blurred.jpg")
+    val inputImageFile = File("data/goat.jpg")
     val labelDumpDir: String? = null//"output/astro"
     val expirementName = "group"
-    val threshold = 0.98
+    val threshold = 0.95
 
 
     /*
@@ -36,7 +36,7 @@ fun main() {
 
 
     //val distanceThreshold = 0.25
-    val collectSimilarGroupPosition: Point? = 208 with 735 //null// 372  with 500
+    val collectSimilarGroupPosition: Point? = 218 with 190 //null// 372  with 500
     val outputGroupedFile = File("output/${inputImageFile.nameWithoutExtension}-vision-$expirementName-$threshold.png")
     val outputDistanceGroupedFile =
         File("output/${inputImageFile.nameWithoutExtension}-distance_vision-$expirementName-$threshold.png")
@@ -57,16 +57,20 @@ fun main() {
 
     //println("Removing Lines")
     //visionPixels.removeLines(labels)
-    println("Lines Removed")
-    getLines(labels)
+    //println("Lines Removed")
+    //getLines(labels)
 
-    visionPixels.mergeNeighborGroups(labels, 0.95)
+    /*
+    println("Merging Neighbors")
+    //visionPixels.mergeNeighborGroups(labels, 0.95)
+    //visionPixels.mergeNeighborGroups2(labels, 0.98)
+    visionPixels.mergeNeighborGroups9(labels, 0.99)
     println("Neighbors Merged")
-    getLines(labels)
+    //getLines(labels)
     visionPixels.mergeSmallGroups(labels, 32)
     println("Small Groups")
-    getLines(labels)
-
+    //getLines(labels)
+    // */
 
     //distancePixels.mergeSmallGroups(distanceLabels, 16)
 
@@ -84,7 +88,9 @@ fun main() {
     //println("Distance Label Count: $uniqueDistanceLabels")
 
     println("Creating label overlay image")
-    overlayPixelBoundsOnImage(inputImage, labels, overlayOutputImageFile)
+    println("Overlaying Centroids")
+    val centroidImage = overlayCentroids(inputImage, labels)
+    overlayPixelBoundsOnImage(centroidImage, labels, overlayOutputImageFile)
     println(overlayOutputImageFile.toPath().toUri())
     //overlayPixelBoundsOnImage(inputImage, distanceLabels, overlayDistanceOutputImageFile)
     println(overlayDistanceOutputImageFile.toPath().toUri())
