@@ -18,10 +18,11 @@ import kotlin.math.log2
 import kotlin.math.round
 
 fun main() {
+    //val inputImageFile = File("/Users/joeaustin/Downloads/BSDS300 2/images/train/43070.jpg")
     val inputImageFile = File("data/goat.jpg")
-    val labelDumpDir: String? = null//"output/astro"
+    val labelDumpDir: String? = null // "data/dog_labels"
     val expirementName = "group"
-    val threshold = 0.95
+    val threshold = 0.99
 
 
     /*
@@ -60,17 +61,18 @@ fun main() {
     //println("Lines Removed")
     //getLines(labels)
 
-    /*
-    println("Merging Neighbors")
+
+    //println("Merging Neighbors")
     //visionPixels.mergeNeighborGroups(labels, 0.95)
     //visionPixels.mergeNeighborGroups2(labels, 0.98)
-    visionPixels.mergeNeighborGroups9(labels, 0.99)
-    println("Neighbors Merged")
+    //visionPixels.mergeNeighborGroups9(labels, 0.98)
+    //println("Neighbors Merged")
     //getLines(labels)
-    visionPixels.mergeSmallGroups(labels, 32)
+    //visionPixels.mergeSmallGroups(labels, 32)
+    visionPixels.mergeSmallGroups(labels, 16)
     println("Small Groups")
     //getLines(labels)
-    // */
+    //*/
 
     //distancePixels.mergeSmallGroups(distanceLabels, 16)
 

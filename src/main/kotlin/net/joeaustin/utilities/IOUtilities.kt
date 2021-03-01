@@ -107,7 +107,6 @@ fun writeLabelsToFile(
     ImageIO.write(outImage, "PNG", outputFile)
 }
 
-
 fun writeLabelsToFiles(
     dir: File,
     source: BufferedImage,
@@ -204,6 +203,7 @@ fun overlayCentroids(
             if (label !in visitedLabels) {
                 val (cx, cy) = getLabelEdges(label, labels, labelMap).centroid()
                 visitedLabels.add(label)
+                println("X: $cx; Y: $cy")
                 outImage.setRGB(cx, cy, penInt)
             }
 

@@ -9,15 +9,15 @@ import kotlin.math.round
 private const val PATCH_SIZE = 4
 
 fun main() {
-    val inputFile = File("data/segmented.png")
+    val inputFile = File("data/1.jpg")
     val inputImage = ImageIO.read(inputFile)
     val outImage = createPixelatedImage(inputImage, PATCH_SIZE)
 
-    val outName = "${inputFile.name}-out.png"
+    val outName = "${inputFile.nameWithoutExtension}-out.png"
     val outFile = File("output/$outName")
     ImageIO.write(outImage, "PNG", outFile)
 
-
+    println(outFile.toPath().toUri())
     println("Done!")
 }
 

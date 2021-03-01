@@ -116,14 +116,17 @@ class VisionPixels(private val image: BufferedImage) {
     }
 
     fun mergeSmallGroups(dataStore: Array<Array<PixelLabel>>, minGroupSize: Int = MIN_GROUP_SIZE) {
+        /*val smallRegions =
+            dataStore.flatten().groupBy { it.label }.filter { it.value.size < minGroupSize }.toMutableMap()*/
         val smallRegions =
-            dataStore.flatten().groupBy { it.label }.filter { it.value.size < minGroupSize }.toMutableMap()
-        val joinMap = HashMap<Int, List<PixelLabel>>()
+            dataStore.flatten().groupBy { it.label }
+                .filter { isPixelGroupTooSmall(dataStore, it.value, minGroupSize / 2) }
+                .toMutableMap()
         println("Small group size: ${smallRegions.size}")
 
         smallRegions.forEach { (_, pixels) ->
             var bestLabelMatch = 0
-            var bestMatchDifference = Double.MIN_VALUE
+            var bestMatchDifference = -Double.MAX_VALUE
 
             pixels.forEach { pixel ->
                 val currentPixelHsl = pixel.pixel.toHxHySL()
@@ -142,6 +145,7 @@ class VisionPixels(private val image: BufferedImage) {
             }
 
             //Assign best label to this group in the data store
+            //println("Re-assigning pixel group ${pixels.first().label} with ${pixels.size} pixels to $bestLabelMatch")
             pixels.forEach { pixel ->
                 val (x, y) = pixel.point
                 dataStore[x][y] = dataStore[x][y].copy(label = bestLabelMatch)
@@ -154,6 +158,22 @@ class VisionPixels(private val image: BufferedImage) {
 
         val postMergeSmallRegions = dataStore.flatten().groupBy { it.label }.filter { it.value.size < minGroupSize }
         println("Post Merge Small group size: ${postMergeSmallRegions.size}")
+    }
+
+    private fun isPixelGroupTooSmall(
+        dataStore: Array<Array<PixelLabel>>,
+        pixels: List<PixelLabel>,
+        minSize: Int
+    ): Boolean {
+        val r = minSize / 2
+
+        val tooSmall = pixels.none { pl ->
+            getNeighborLocations(pl.point.x, pl.point.y, r, width, height).all { (nx, ny) ->
+                dataStore[nx][ny].label == pl.label
+            }
+        }
+
+        return tooSmall
     }
 
     fun mergeNeighborGroups9(dataStore: Array<Array<PixelLabel>>, threshold: Double) {
@@ -361,7 +381,7 @@ class VisionPixels(private val image: BufferedImage) {
     private fun findSimilarPixelNeighborLabels(
         label: Int,
         labelMap: Map<Int, List<PixelLabel>>,
-        vectorMap : Map<Int, VectorN>,
+        vectorMap: Map<Int, VectorN>,
         labels: Array<Array<PixelLabel>>,
         threshold: Double
     ): Set<Int> {

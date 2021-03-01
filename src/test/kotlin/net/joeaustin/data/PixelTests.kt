@@ -90,6 +90,17 @@ class PixelTests {
         val twoHsl = two.toHxHySL()
         val threeHsl = three.toHxHySL()
 
+        println("Distance between one and two ${oneHsl.cosineDistance(twoHsl)}")
+
+        val oneScaled = oneHsl * 20.0
+        val twoScaled = twoHsl * 20.0
+
+        println("Distance between one and two scaled ${oneScaled.cosineDistance(twoHsl / 2.0)}")
+
+
+        println("Distance between one and two ${oneHsl.cosineDistance(twoHsl)}")
+        println("Distance between one and three ${oneHsl.cosineDistance(threeHsl)}")
+
         println(oneHsl[3] * 255)
         println(one.luminosity)
         println("-".repeat(20))
