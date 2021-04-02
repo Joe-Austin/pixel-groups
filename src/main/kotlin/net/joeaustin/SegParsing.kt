@@ -11,10 +11,10 @@ import java.io.File
 import javax.imageio.ImageIO
 
 fun main() {
-    val imageId = "23084"
-    val humanId = "1105"
+    val imageId = "3096"
+    val humanId = "1107"
     val segmentationFile = File("/Users/joeaustin/Downloads/BSDS300/human/color/$humanId/$imageId.seg")
-    val imageFile = File("/Users/joeaustin/Downloads/BSDS300 2/images/train/$imageId.jpg")
+    val imageFile = File("/Users/joeaustin/Downloads/BSDS300 2/images/test/$imageId.jpg")
     val outputFile =
         File("output/${imageFile.nameWithoutExtension}_human_${segmentationFile.nameWithoutExtension}.png")
 

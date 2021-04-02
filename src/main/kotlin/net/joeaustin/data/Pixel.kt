@@ -5,6 +5,7 @@ import kotlin.math.*
 private const val WEIGHT_RED = .3
 private const val WEIGHT_GREEN = .59
 private const val WEIGHT_BLUE = .11
+private const val GAMMA = 0.04045
 
 data class Pixel(val a: Int, val r: Int, val g: Int, val b: Int) {
 
@@ -58,6 +59,34 @@ data class Pixel(val a: Int, val r: Int, val g: Int, val b: Int) {
         }
 
         return VectorN(h, s, l)
+    }
+
+    fun toXyz(): VectorN {
+        val alpha = a / 255.0
+        val red = (r * alpha) / 255.0
+        val green = (g * alpha) / 255.0
+        val blue = (b * alpha) / 255.0
+
+        val sRgb = VectorN(
+            linearizeRgbValue(red),
+            linearizeRgbValue(green),
+            linearizeRgbValue(blue)
+        )
+
+        val cieMatrix = Matrix.of(
+            arrayOf(0.4124564, 0.3575761, 0.1804375),
+            arrayOf(0.2126729, 0.7151522, 0.0721750),
+            arrayOf(0.0193339, 0.1191920, 0.9503041)
+        )
+
+        return cieMatrix * sRgb
+    }
+
+    private fun linearizeRgbValue(value: Double): Double {
+        return when {
+            value > GAMMA -> ((value + 0.055) / 1.055).pow(2.4)
+            else -> value / 12.92
+        }
     }
 
     fun toHxHySL(): VectorN {

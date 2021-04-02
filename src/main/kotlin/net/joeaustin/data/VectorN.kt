@@ -67,10 +67,10 @@ class VectorN(vararg val elements: Double) {
         if (this.size != other.size) throw UnsupportedOperationException("Cannot get distance to unequal vectors")
         var sum = 0.0
         for (i in 0 until size) {
-            sum += sqrt((this[i] - other[i]).pow(2))
+            sum += (this[i] - other[i]).pow(2)
         }
 
-        return sum
+        return sqrt(sum)
     }
 
     fun magnitude(): Double {

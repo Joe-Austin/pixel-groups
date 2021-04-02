@@ -19,10 +19,11 @@ import kotlin.math.round
 
 fun main() {
     //val inputImageFile = File("/Users/joeaustin/Downloads/BSDS300 2/images/train/43070.jpg")
-    val inputImageFile = File("data/goat.jpg")
+    val inputImageFile = File("data/3.jpg")
     val labelDumpDir: String? = null // "data/dog_labels"
     val expirementName = "group"
-    val threshold = 0.99
+    val threshold = 0.95
+    val mergeThreshold: Double? = 0.995
 
 
     /*
@@ -37,7 +38,7 @@ fun main() {
 
 
     //val distanceThreshold = 0.25
-    val collectSimilarGroupPosition: Point? = 218 with 190 //null// 372  with 500
+    val collectSimilarGroupPosition: Point? = null //218 with 190 //null// 372  with 500
     val outputGroupedFile = File("output/${inputImageFile.nameWithoutExtension}-vision-$expirementName-$threshold.png")
     val outputDistanceGroupedFile =
         File("output/${inputImageFile.nameWithoutExtension}-distance_vision-$expirementName-$threshold.png")
@@ -51,6 +52,8 @@ fun main() {
     //val distancePixels = DistancePixel(inputImage)
     //val labels = visionPixels.labelPixelsWithAverage(threshold)
     val labels = visionPixels.labelPixels(threshold)
+
+
     //val distanceLabels = distancePixels.labelPixels(distanceThreshold)
     //val labels = visionPixels.labelImageWithTextureCondensing(threshold, threshold)
     println("Raw Lines")
@@ -65,10 +68,12 @@ fun main() {
     //println("Merging Neighbors")
     //visionPixels.mergeNeighborGroups(labels, 0.95)
     //visionPixels.mergeNeighborGroups2(labels, 0.98)
-    //visionPixels.mergeNeighborGroups9(labels, 0.98)
+    //KEEP
+    mergeThreshold?.let { visionPixels.mergeNeighborGroups9(labels, it)}
     //println("Neighbors Merged")
     //getLines(labels)
-    //visionPixels.mergeSmallGroups(labels, 32)
+
+    //KEEP
     visionPixels.mergeSmallGroups(labels, 16)
     println("Small Groups")
     //getLines(labels)

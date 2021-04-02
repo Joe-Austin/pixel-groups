@@ -2,11 +2,137 @@ package net.joeaustin.data
 
 import org.junit.Assert.assertEquals
 import org.junit.Test
-import kotlin.math.atan
-import kotlin.math.pow
-import kotlin.math.sqrt
+import kotlin.math.*
 
 class PixelTests {
+
+    @Test
+    fun sandox() {
+        //8B9E07
+        //33CA39
+        //00E600
+        val p1 = Pixel.fromInt(0xFF4B9671.toInt())
+        val p2 = Pixel.fromInt(0xFF33CA39.toInt())
+        val p3 = Pixel.fromInt(0xFF04E600.toInt())
+
+        println(p1)
+        println(p2)
+        println(p3)
+
+
+        val a = Pixel.fromInt(0xFF4B9671.toInt()).toRgbVector()
+        val b = Pixel.fromInt(0xFF33CA39.toInt()).toRgbVector()
+        val c = Pixel.fromInt(0xFF04E600.toInt()).toRgbVector()
+        //val c = VectorN(158.18364524085416, 158.18364524085416, 57.0)
+        //val c = VectorN(139.0, 158.0, 57.0)
+
+        val diff = b - c
+        val angle = -90.0
+        val rotationMatrix = Matrix.of(
+            arrayOf(cos(angle), -sin(angle), 0.0),
+            arrayOf(cos(angle), -sin(angle), 0.0),
+            arrayOf(0.0, 0.0, 1.0),
+        )
+
+        val rotatedVector = rotationMatrix * b
+        //val rotatedVector = rotationMatrix * b
+        //val translatedVector = b + rotatedVector
+
+        println("Rotated Vector: $rotatedVector")
+        println("Diff From Rotated Vector: ${b.distanceTo(rotatedVector)}")
+
+
+        println("B -> A ${b.distanceTo(a)}")
+        println("B -> C ${b.distanceTo(c)}")
+        println("B - C ${b - c}")
+    }
+
+    @Test
+    fun hslSandbox() {
+
+        // Opposite Colors
+        val pa = Pixel(255, 0, 0, 1)
+        val pb = Pixel(255, 126, 126, 126)
+        val pc = Pixel(255, 255, 255, 255)
+
+        /*// Opposite Colors
+        val pa = Pixel(255, 0, 255, 0)
+        val pb = Pixel(255, 255, 0, 0)
+        val pc = Pixel(255, 0, 0, 255)*/
+
+        /*// Green Colors
+        val pa = Pixel(255, 75, 150, 113)
+        val pb = Pixel(255, 50, 202, 57)
+        val pc = Pixel(255, 0, 230, 0)*/
+
+
+        /*//Red Colors
+        val pa = Pixel.fromInt(0xFFFF0008.toInt())
+        val pb = Pixel.fromInt(0xFFFF0000.toInt())
+        val pc = Pixel.fromInt(0xFFFF0800.toInt())*/
+
+        /*//Cat Colors A,B
+        val pa = Pixel.fromInt(0xFF3E4662.toInt())
+        val pb = Pixel.fromInt(0xFF090E2A.toInt())
+        val pc = Pixel.fromInt(0xFFFFFFFF.toInt())*/
+
+        //Cat Colors C,D
+        /*val pa = Pixel.fromInt(0xFFAA7740.toInt())
+        val pb = Pixel.fromInt(0xFFE2C09C.toInt())
+        val pc = Pixel.fromInt(0xFFFFFFFF.toInt())*/
+
+
+        val aHxHySL = pa.toHxHySL()
+        val bHxHySL = pb.toHxHySL()
+        val cHxHySL = pc.toHxHySL()
+
+        val aXyz = pa.toXyz()
+        val bXyz = pb.toXyz()
+        val cXyz = pc.toXyz()
+
+        val aHsl = pa.toHsl()
+        val bHsl = pb.toHsl()
+        val cHsl = pc.toHsl()
+
+        val aRgb = pa.toRgbVector()
+        val bRgb = pb.toRgbVector()
+        val cRgb = pc.toRgbVector()
+
+        //val c = VectorN(158.18364524085416, 158.18364524085416, 57.0)
+        //val c = Pixel(255, 139, 158, 57).toHxHySL()
+
+
+        println("-------- HSL --------")
+        println("B -> $bHsl")
+        println("A -> $aHsl")
+        println("C -> $cHsl")
+        println("CD B -> A ${bHsl.cosineDistance(aHsl)} | ED B-> A ${bHsl.distanceTo(aHsl)}")
+        println("CD B -> C ${bHsl.cosineDistance(cHsl)} | ED B-> C ${bHsl.distanceTo(cHsl)}")
+
+        println()
+        println("-------- HxHySL --------")
+        println("B -> $bHxHySL")
+        println("A -> $aHxHySL")
+        println("C -> $cHxHySL")
+        println("CD B -> A ${bHxHySL.cosineDistance(aHxHySL)} | ED B-> A ${bHxHySL.distanceTo(aHxHySL)}")
+        println("CD B -> C ${bHxHySL.cosineDistance(cHxHySL)} | ED B-> C ${bHxHySL.distanceTo(cHxHySL)}")
+
+        println()
+        println("-------- XYZ --------")
+        println("B -> $bXyz")
+        println("A -> $aXyz")
+        println("C -> $cXyz")
+        println("CD B -> A ${bXyz.cosineDistance(aXyz)} | ED B-> A ${bXyz.distanceTo(aXyz)}")
+        println("CD B -> C ${bXyz.cosineDistance(cXyz)} | ED B-> C ${bXyz.distanceTo(cXyz)}")
+
+        println()
+        println("-------- RGB --------")
+        println("B -> $bRgb")
+        println("A -> $aRgb")
+        println("C -> $cRgb")
+        println("CD B -> A ${bRgb.cosineDistance(aRgb)} | ED B-> A ${bRgb.distanceTo(aRgb)}")
+        println("CD B -> C ${bRgb.cosineDistance(cRgb)} | ED B-> C ${bRgb.distanceTo(cRgb)}")
+    }
 
     @Test
     fun rgbToHslToRgb() {
@@ -77,6 +203,22 @@ class PixelTests {
         val initial = VectorN(0.0, 1.0, 4.0, 5.0, 6.0)
         val expected = VectorN(0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0)
         assertEquals(expected, initial.insert(2, 2.0, 3.0))
+    }
+
+    @Test
+    fun testColinearity() {
+        val one = Pixel.fromInt(0xFFa78b7a.toInt())
+        val two = Pixel.fromInt(0xFFa78b7a.toInt())
+
+        val oneHsl = one.toHxHySL()
+        val twoHsl = two.toHxHySL()
+
+        println(oneHsl.cosineDistance(twoHsl))
+
+        val oneXY = oneHsl.append(0.0, 0.0)
+        val twoXY = twoHsl.append(0.0, 0.3)
+
+        println(oneXY.cosineDistance(twoXY))
     }
 
     @Test

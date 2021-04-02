@@ -14,7 +14,7 @@ import kotlin.math.roundToInt
 import kotlin.math.sqrt
 
 fun main() {
-    val inputFile = File("data/goat.jpg")
+    val inputFile = File("data/3.jpg")
     val t = 0.5
 
     val image = ImageIO.read(inputFile)
