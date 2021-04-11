@@ -64,7 +64,7 @@ class VectorN(vararg val elements: Double) {
     }
 
     fun distanceTo(other: VectorN): Double {
-        if (this.size != other.size) throw UnsupportedOperationException("Cannot get distance to unequal vectors")
+        if (this.size != other.size) throw UnsupportedOperationException("Cannot get distance of unequally sized vectors")
         var sum = 0.0
         for (i in 0 until size) {
             sum += (this[i] - other[i]).pow(2)

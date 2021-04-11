@@ -116,8 +116,6 @@ class VisionPixels(private val image: BufferedImage) {
     }
 
     fun mergeSmallGroups(dataStore: Array<Array<PixelLabel>>, minGroupSize: Int = MIN_GROUP_SIZE) {
-        /*val smallRegions =
-            dataStore.flatten().groupBy { it.label }.filter { it.value.size < minGroupSize }.toMutableMap()*/
         val smallRegions =
             dataStore.flatten().groupBy { it.label }
                 .filter { isPixelGroupTooSmall(dataStore, it.value, minGroupSize / 2) }
@@ -167,13 +165,11 @@ class VisionPixels(private val image: BufferedImage) {
     ): Boolean {
         val r = minSize / 2
 
-        val tooSmall = pixels.none { pl ->
+        return pixels.none { pl ->
             getNeighborLocations(pl.point.x, pl.point.y, r, width, height).all { (nx, ny) ->
                 dataStore[nx][ny].label == pl.label
             }
         }
-
-        return tooSmall
     }
 
     fun mergeNeighborGroups9(dataStore: Array<Array<PixelLabel>>, threshold: Double) {
@@ -544,10 +540,4 @@ class VisionPixels(private val image: BufferedImage) {
                 } * -1
         }
     }
-}
-
-
-private fun <T> List<T>.debug(run: List<T>.() -> Unit): List<T> {
-    run(this)
-    return this
 }
